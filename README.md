@@ -56,11 +56,11 @@ directory.exclude.files=*.test.java
 ```
 java -cp java-dependency-analyzer-1.0.0.jar io.github.jitawangzi.jdepend.DirectoryAnalyzer
 ```
-配置选项
+#### 配置选项
 
 配置文件位于src/main/resources/application.properties，以下是主要配置选项：
 
-通用配置
+- 通用配置
 ```
 # 输出文件名
 output.file=output.md
@@ -73,7 +73,7 @@ simplify.ref.methods=true
 # 是否省略getter/setter方法
 omit.bean.methods=true
 ```
-类分析模式配置
+- 类分析模式配置
 ```
 # 主类
 main.class=com.example.MyMainClass
@@ -84,7 +84,7 @@ keep.main.methods=true
 # 是否只保留被引用的方法
 keep.only.referenced.methods=true
 ```
-目录模式配置
+- 目录模式配置
 ```
 # 目录路径
 directory.path=/path/to/your/directory
@@ -101,3 +101,39 @@ directory.allowed.extensions=java,xml,properties
 ```
 
 使用示例
+
+## 工作原理
+- 依赖分析：工具使用JavaParser解析Java源代码，分析类之间的依赖关系
+- 方法跟踪：识别方法调用链，确定哪些方法被实际引用
+- 内容处理：简化方法实现，移除未使用的代码，优化导入声明
+- 令牌优化：通过各种策略减少代码的token数量，使其更适合LLM的输入限制
+- Markdown生成：将处理后的代码组织成结构化的Markdown文档
+
+## 常见问题解答
+**如何减少生成文件的大小？**
+
+增加max.depth限制分析深度
+设置excluded.packages排除不需要的包
+启用omit.bean.methods=true和simplify.ref.methods=true优化代码
+
+**LLM无法处理生成的文件怎么办？**
+
+检查是否超出了LLM的token限制
+尝试减少分析深度或增加排除包
+使用output.file生成文件，然后分批提交给LLM
+
+**如何找到正确的主类？**
+
+通常是应用程序的入口类，包含main方法
+
+**分析结果有误怎么办？**
+
+检查project.root路径是否正确
+确保source.directories配置了正确的源码目录
+检查是否有必要的依赖库
+## 贡献
+欢迎提交问题报告、功能请求和代码贡献。请先fork仓库，然后提交拉取请求。
+
+## 许可证
+本项目采用MIT许可证
+
