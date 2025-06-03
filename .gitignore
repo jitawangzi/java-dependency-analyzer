@@ -1,0 +1,11 @@
+/logs
+/bin
+/dist
+/bin/*
+/target/
+/.settings/*
+.settings
+/.classpath
+/.project
+/.idea
+/output.md
