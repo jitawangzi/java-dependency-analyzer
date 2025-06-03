@@ -181,7 +181,7 @@ public class DirectoryAnalyzer {
 			System.out.printf("Tokens saved: %d%n", tokenStats.getSavedTokens());
 
 			Files.writeString(Paths.get(config.getOutputFile()), prompt);
-			System.out.println("Prompt has been saved to 'generated_prompt.md'");
+			System.out.println("Prompt has been saved to '" + config.getOutputFile() + "'");
 		} else {
 			System.out.println("No matching files found.");
 		}

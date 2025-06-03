@@ -79,7 +79,7 @@
                         <configuration>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>io.github.jitawangzi.jdepend.App</mainClass>
+                                    <mainClass>io.github.jitawangzi.jdepend.DirectoryAnalyzer</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
