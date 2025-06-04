@@ -63,6 +63,13 @@ public interface AppConfig extends Config {
 	Set<String> getExcludedPackages();
 
 	/**
+	 * 获取项目包前缀
+	 */
+	@Separator(",")
+	@Key("project.package.prefixes")
+	Set<String> getProjectPackagePrefixes();
+
+	/**
 	 * 获取需要保留方法体的特例类集合
 	 */
 	@Separator(",")

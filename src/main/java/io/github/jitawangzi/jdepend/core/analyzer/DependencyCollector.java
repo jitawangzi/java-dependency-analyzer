@@ -113,7 +113,17 @@ public class DependencyCollector {
 	 * @return 是否是项目内的类
 	 */
 	private boolean isProjectClass(String className) {
-		return className.startsWith("cn.game") && !isExcludedPackage(className);
+		Set<String> projectPackagePrefixes = AppConfig.INSTANCE.getProjectPackagePrefixes();
+		boolean ret = false;
+		for (String prefix : projectPackagePrefixes) {
+			if (className.startsWith(prefix)) {
+				ret = true;
+			}
+		}
+		if (!ret) {
+			return false;
+		}
+		return !isExcludedPackage(className);
 	}
 
 	public List<ClassDependency> collectFromClasses(Set<String> classes) throws Exception {
