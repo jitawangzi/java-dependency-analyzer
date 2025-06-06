@@ -131,6 +131,11 @@ directory.allowed.extensions=java,xml,properties
 检查project.root路径是否正确
 确保source.directories配置了正确的源码目录
 检查是否有必要的依赖库
+
+## 已知问题
+- 内部类不会参与方法引用分析，也不会省略方法体。
+- 在某些复杂代码情况下，javaparser可能会解析失败，导致遗漏一些方法实际引用到的类。
+
 ## 贡献
 欢迎提交问题报告、功能请求和代码贡献。请先fork仓库，然后提交拉取请求。
 
