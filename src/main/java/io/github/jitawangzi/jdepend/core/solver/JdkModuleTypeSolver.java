@@ -1,4 +1,4 @@
-package io.github.jitawangzi.jdepend.util;
+package io.github.jitawangzi.jdepend.core.solver;
 
 import java.util.Arrays;
 import java.util.List;

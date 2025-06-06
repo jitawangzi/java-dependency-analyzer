@@ -19,6 +19,7 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 
 import io.github.jitawangzi.jdepend.config.AppConfig;
+import io.github.jitawangzi.jdepend.core.solver.SimpleXmlTypeSolver;
 import io.github.jitawangzi.jdepend.project.ProjectParser;
 import io.github.jitawangzi.jdepend.project.ProjectParserFactory;
 
