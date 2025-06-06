@@ -79,8 +79,9 @@ public class JavaParserInit {
         init();
         // 解析Java文件
         File sourceFile = new File(
-//                "C:\\work_all\\work\\server\\game\\src\\main\\java\\cn\\game\\games\\net\\game\\module\\develop\\pet\\PetHandler.java");
-				"C:\\work_all\\work\\server\\protocol\\src\\main\\java\\cn\\game\\protocol\\generated\\config\\GlobalConst.java");
+				"C:\\work_all\\work\\server\\game\\src\\main\\java\\cn\\game\\games\\net\\game\\module\\zongmen\\ZongMenGameHandler.java");
+//				"C:\\work_all\\work\\server\\game\\src\\main\\java\\cn\\game\\games\\net\\game\\module\\develop\\pet\\PetHandler.java");
+//				"C:\\work_all\\work\\server\\protocol\\src\\main\\java\\cn\\game\\protocol\\generated\\config\\GlobalConst.java");
         CompilationUnit cu = StaticJavaParser.parse(sourceFile);
         // 遍历类和方法并解析方法调用
         cu.findAll(ClassOrInterfaceDeclaration.class).forEach(clazz -> {

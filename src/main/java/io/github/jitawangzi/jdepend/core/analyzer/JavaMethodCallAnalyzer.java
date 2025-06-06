@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +32,8 @@ import io.github.jitawangzi.jdepend.util.ParseUtil;
  */
 public class JavaMethodCallAnalyzer {
 	private static Logger log = LoggerFactory.getLogger(JavaMethodCallAnalyzer.class);
+	static AtomicInteger failedCount = new AtomicInteger(0);
+
 	/**
 	 * 方法调用信息类，包含调用方法和被调用方法的信息
 	 */
@@ -146,7 +149,8 @@ public class JavaMethodCallAnalyzer {
 							log.debug("SymbolSolver解析" + className + "中的方法" + callerMethodName + "调用成功: " + resolvedClassName + " "
 									+ resolvedMethodName);
 						} catch (Exception e) {
-							log.error("SymbolSolver解析" + className + "中的方法" + callerMethodName + "调用失败", e);
+							log.error("SymbolSolver解析" + className + "中的方法" + callerMethodName + "调用失败,failCount : "
+									+ failedCount.incrementAndGet(), e);
 							log.debug("SymbolSolver解析" + className + "中的方法" + callerMethodName + "调用失败，退化为自定义方式 ");
 							// 获取被调用的方法信息
 							resolvedMethodName = methodCall.getNameAsString();
