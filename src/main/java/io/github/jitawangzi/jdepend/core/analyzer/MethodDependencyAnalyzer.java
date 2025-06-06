@@ -35,10 +35,10 @@ public class MethodDependencyAnalyzer {
 	private final Set<String> allDependencies = new HashSet<>();
 	private final Set<String> analyzedClasses = new HashSet<>();
 
-	// 方法调用依赖映射（方法到类的映射）
+	// 方法调用依赖映射（方法到类的映射）key:完整类名+方法名，value:这个方法调用到的类集合
 	private Map<String, Set<String>> methodDependencies = new HashMap<>();
 
-	// 方法调用依赖映射（方法到方法的映射）
+	// 方法调用依赖映射（方法到方法的映射）key:完整类名+方法名 ,value:这个方法调用到的其他方法（完整类名+方法名）集合
 	private Map<String, Set<String>> methodToMethodDependencies = new HashMap<>();
 
 	// 方法引用信息，key是方法全名（类名.方法名），value是引用信息

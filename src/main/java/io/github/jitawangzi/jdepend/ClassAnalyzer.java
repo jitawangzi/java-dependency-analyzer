@@ -36,6 +36,7 @@ public class ClassAnalyzer {
 	 * @throws Exception 如果分析过程中发生错误
 	 */
 	public static void main(String[] args) throws Exception {
+		long timeMillis = System.currentTimeMillis();
 		JavaParserInit.init();
 		// 加载配置
 		AppConfig config = AppConfig.INSTANCE;
@@ -110,5 +111,6 @@ public class ClassAnalyzer {
 			System.out.println(summary);
 			System.out.println("内容过多，未复制到剪切板。完整内容请查看输出文件。");
 		}
+		log.info("分析完成，耗时: {} S", (System.currentTimeMillis() - timeMillis) / 1000);
 	}
 }
