@@ -3,7 +3,6 @@ package io.github.jitawangzi.jdepend.core.analyzer;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -21,10 +20,10 @@ import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 
 import io.github.jitawangzi.jdepend.config.AppConfig;
+import io.github.jitawangzi.jdepend.core.analyzer.JavaMethodCallAnalyzer.MethodCallInfo;
 import io.github.jitawangzi.jdepend.core.model.MethodReferenceInfo;
+import io.github.jitawangzi.jdepend.util.CommonUtil;
 import io.github.jitawangzi.jdepend.util.FileLocator;
-import io.github.jitawangzi.jdepend.util.JavaMethodCallAnalyzer;
-import io.github.jitawangzi.jdepend.util.JavaMethodCallAnalyzer.MethodCallInfo;
 
 /**
  * 方法级依赖分析器 - 分析实际方法调用来确定依赖关系
@@ -87,6 +86,8 @@ public class MethodDependencyAnalyzer {
 				analyzeMethodDependenciesRecursively(methodName, actualDependencies, analyzedMethods);
 			}
 		}
+		// 这里移除非项目的类
+//		actualDependencies.removeIf(className -> !CommonUtil.isProjectClass(className));
 
 		// 添加必要的接口和父类依赖
 		Set<String> finalDependencies = new HashSet<>(actualDependencies);
@@ -174,7 +175,7 @@ public class MethodDependencyAnalyzer {
 	 */
 	private void analyzeClassDependencies(String className, int depth) throws IOException {
 		// 防止循环依赖和超出深度限制
-		if (analyzedClasses.contains(className) || isExcludedPackage(className)
+		if (analyzedClasses.contains(className) || CommonUtil.isExcludedPackage(className)
 				|| (AppConfig.INSTANCE.getMaxDepth() > 0 && depth > AppConfig.INSTANCE.getMaxDepth())) {
 			return;
 		}
@@ -197,7 +198,7 @@ public class MethodDependencyAnalyzer {
 		// 1. 从导入语句中收集依赖
 		for (ImportDeclaration importDecl : cu.getImports()) {
 			String importName = importDecl.getNameAsString();
-			if (isProjectClass(importName)) {
+			if (CommonUtil.isProjectClass(importName)) {
 				// 检查是否是通配符导入 (例如: import com.example.*)
 				if (importDecl.isAsterisk()) {
 					// 通配符导入处理
@@ -222,7 +223,7 @@ public class MethodDependencyAnalyzer {
 				for (ImportDeclaration importDecl : cu.getImports()) {
 					String importName = importDecl.getNameAsString();
 					if (importName.endsWith("." + typeName)) {
-						if (isProjectClass(importName)) {
+						if (CommonUtil.isProjectClass(importName)) {
 							allDependencies.add(importName);
 							try {
 								analyzeClassDependencies(importName, depth + 1);
@@ -240,7 +241,7 @@ public class MethodDependencyAnalyzer {
 				for (ImportDeclaration importDecl : cu.getImports()) {
 					String importName = importDecl.getNameAsString();
 					if (importName.endsWith("." + typeName)) {
-						if (isProjectClass(importName)) {
+						if (CommonUtil.isProjectClass(importName)) {
 							allDependencies.add(importName);
 							try {
 								analyzeClassDependencies(importName, depth + 1);
@@ -262,7 +263,7 @@ public class MethodDependencyAnalyzer {
 					String importName = importDecl.getNameAsString();
 					if (importName.endsWith("." + fieldTypeName) || (fieldTypeName.contains("<")
 							&& importName.endsWith("." + fieldTypeName.substring(0, fieldTypeName.indexOf("<"))))) {
-						if (isProjectClass(importName)) {
+						if (CommonUtil.isProjectClass(importName)) {
 							allDependencies.add(importName);
 							try {
 								analyzeClassDependencies(importName, depth + 1);
@@ -281,7 +282,7 @@ public class MethodDependencyAnalyzer {
 						for (ImportDeclaration importDecl : cu.getImports()) {
 							String importName = importDecl.getNameAsString();
 							if (importName.endsWith("." + typePart)) {
-								if (isProjectClass(importName)) {
+								if (CommonUtil.isProjectClass(importName)) {
 									allDependencies.add(importName);
 									try {
 										analyzeClassDependencies(importName, depth + 1);
@@ -303,10 +304,6 @@ public class MethodDependencyAnalyzer {
 	 * @throws IOException 如果分析过程中发生IO错误
 	 */
 	private void analyzeMethodCalls() throws IOException {
-		// 准备源码目录列表
-		List<String> sourceDirs = new ArrayList<>();
-		sourceDirs.add(AppConfig.INSTANCE.getProjectRootPath());
-
 		log.info("开始分析方法调用关系...");
 
 		// 分析每个已发现的类
@@ -315,7 +312,7 @@ public class MethodDependencyAnalyzer {
 			if (classFile != null) {
 				try {
 					// 分析类中的方法调用
-					Map<String, MethodCallInfo> methodCalls = JavaMethodCallAnalyzer.analyzeJavaFile(classFile.toString(), sourceDirs);
+					Map<String, MethodCallInfo> methodCalls = JavaMethodCallAnalyzer.analyzeJavaFile(classFile.toString());
 
 					// 处理分析结果
 					for (MethodCallInfo info : methodCalls.values()) {
@@ -331,28 +328,24 @@ public class MethodDependencyAnalyzer {
 								String scope = call.getScope();
 								String methodName = call.getMethodName();
 
+								// 调用类的全限定名
+								String calledClass = scope;
 								// 如果是当前类的方法调用
 								if (scope.equals("this")) {
-									String calledMethod = className + "." + methodName;
-									methodDependencies.get(callerMethod).add(className);
+									calledClass = className;
+								}
+								if (CommonUtil.isProjectClass(calledClass)) {
+									String calledMethod = calledClass + "." + methodName;
+									methodDependencies.get(callerMethod).add(calledClass);
 									methodToMethodDependencies.get(callerMethod).add(calledMethod);
 
 									// 更新方法引用信息
-									methodReferences.putIfAbsent(calledMethod, new MethodReferenceInfo(className, methodName));
+									methodReferences.putIfAbsent(calledMethod, new MethodReferenceInfo(calledClass, methodName));
 									methodReferences.get(calledMethod).addCaller(callerMethod);
 								} else {
-									// 尝试确定被调用类的全限定名
-									String calledClass = resolveClassName(scope, className);
-									if (calledClass != null) {
-										String calledMethod = calledClass + "." + methodName;
-										methodDependencies.get(callerMethod).add(calledClass);
-										methodToMethodDependencies.get(callerMethod).add(calledMethod);
-
-										// 更新方法引用信息
-										methodReferences.putIfAbsent(calledMethod, new MethodReferenceInfo(calledClass, methodName));
-										methodReferences.get(calledMethod).addCaller(callerMethod);
-									}
+									log.debug("跳过非项目类的调用: {}", calledClass);
 								}
+
 							}
 						}
 					}
@@ -365,64 +358,6 @@ public class MethodDependencyAnalyzer {
 		log.info("方法调用关系分析完成，共分析 {} 个方法", methodToMethodDependencies.size());
 	}
 
-	/**
-	 * 解析类名的全限定名
-	 * 
-	 * @param scope 作用域
-	 * @param currentClass 当前类
-	 * @return 全限定类名，如果找不到则返回null
-	 */
-	private String resolveClassName(String scope, String currentClass) {
-		String className;
-
-		// 处理方法调用表达式
-		if (scope.contains("(")) {
-			int parenIndex = scope.indexOf("(");
-			String expression = scope.substring(0, parenIndex);
-			int lastDot = expression.lastIndexOf(".");
-			if (lastDot > 0) {
-				// 提取类名部分
-				className = expression.substring(0, lastDot);
-			} else {
-				className = expression; // 没有点号，整个表达式可能就是类名
-			}
-		} else if (scope.contains(".")) {
-			// 处理带点号的表达式，可能是 package.Class 或 Class.staticField
-			int lastDot = scope.lastIndexOf(".");
-			className = scope.substring(0, lastDot);
-		} else {
-			// 简单名称
-			className = scope;
-		}
-
-		// 现在我们有了类名（可能是简单名称，也可能是部分限定名称）
-		// 需要在所有依赖中查找匹配的全限定类名
-
-		// 如果类名本身已经是全限定名，直接返回
-		if (allDependencies.contains(className)) {
-			return className;
-		}
-
-		// 在所有依赖中查找匹配的类名
-		for (String dependency : allDependencies) {
-			if (dependency.endsWith("." + className)) {
-				return dependency;
-			}
-		}
-
-		// 如果找不到匹配的类，尝试使用当前包
-		int lastDot = currentClass.lastIndexOf(".");
-		if (lastDot > 0) {
-			String currentPackage = currentClass.substring(0, lastDot);
-			String possibleClass = currentPackage + "." + className;
-			if (allDependencies.contains(possibleClass)) {
-				return possibleClass;
-			}
-		}
-
-		// 找不到匹配的类，返回null或原始值
-		return null;
-	}
 	/**
 	 * 递归分析方法依赖
 	 * 
@@ -479,7 +414,7 @@ public class MethodDependencyAnalyzer {
 						for (ImportDeclaration importDecl : cu.getImports()) {
 							String importName = importDecl.getNameAsString();
 							if (importName.endsWith("." + implementedType.getNameAsString())) {
-								if (isProjectClass(importName) && !dependencies.contains(importName)) {
+								if (CommonUtil.isProjectClass(importName) && !dependencies.contains(importName)) {
 									dependencies.add(importName);
 									// 递归添加接口的依赖
 									addEssentialDependencies(importName, dependencies);
@@ -493,7 +428,7 @@ public class MethodDependencyAnalyzer {
 						for (ImportDeclaration importDecl : cu.getImports()) {
 							String importName = importDecl.getNameAsString();
 							if (importName.endsWith("." + extendedType.getNameAsString())) {
-								if (isProjectClass(importName) && !dependencies.contains(importName)) {
+								if (CommonUtil.isProjectClass(importName) && !dependencies.contains(importName)) {
 									dependencies.add(importName);
 									// 递归添加父类的依赖
 									addEssentialDependencies(importName, dependencies);
@@ -507,26 +442,6 @@ public class MethodDependencyAnalyzer {
 		} catch (Exception e) {
 			log.error("添加必要依赖时出错", e);
 		}
-	}
-
-	/**
-	 * 判断是否是项目内的类
-	 * 
-	 * @param className 类名
-	 * @return 是否是项目内的类
-	 */
-	private boolean isProjectClass(String className) {
-		return className.startsWith("cn.game") && !isExcludedPackage(className);
-	}
-
-	/**
-	 * 判断是否是被排除的包
-	 * 
-	 * @param className 类名
-	 * @return 是否是被排除的包
-	 */
-	private boolean isExcludedPackage(String className) {
-		return AppConfig.INSTANCE.getExcludedPackages().stream().anyMatch(className::startsWith);
 	}
 
 	/**

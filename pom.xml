@@ -17,7 +17,8 @@
         <java.version>11</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-        <javaparser.version>3.26.4</javaparser.version>
+<!--        这里不使用最新的版本，有问题-->
+        <javaparser.version>3.25.10</javaparser.version>
     </properties>
 
     <dependencies>
@@ -53,6 +54,22 @@
    	 		<artifactId>owner</artifactId>
     		<version>1.0.12</version>
 		</dependency>
+<!--		调用maven命令-->
+		<dependency>
+		    <groupId>org.apache.maven.shared</groupId>
+		    <artifactId>maven-invoker</artifactId>
+		    <version>3.3.0</version>
+		</dependency>
+		<dependency>
+    <groupId>org.apache.maven</groupId>
+    <artifactId>maven-model</artifactId>
+    <version>3.8.6</version>
+</dependency>
+<dependency>
+    <groupId>org.apache.maven</groupId>
+    <artifactId>maven-model-builder</artifactId>
+    <version>3.8.6</version>
+</dependency>
     </dependencies>
 
     <build>

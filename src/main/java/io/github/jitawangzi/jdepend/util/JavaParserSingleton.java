@@ -21,6 +21,7 @@ import com.github.javaparser.ast.CompilationUnit;
  * 提供预配置的JavaParser实例，避免重复创建和配置
  * 最好不要使用这个，直接使用StaticJavaParser 更简单一些 
  */
+@Deprecated
 public class JavaParserSingleton {
 	private static Logger log = LoggerFactory.getLogger(JavaParserSingleton.class);
 
@@ -35,7 +36,7 @@ public class JavaParserSingleton {
 			synchronized (JavaParserSingleton.class) {
 				if (instance == null) {
 					ParserConfiguration config = new ParserConfiguration();
-					config.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21);
+					config.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17);
 					instance = new JavaParser(config);
 				}
 			}

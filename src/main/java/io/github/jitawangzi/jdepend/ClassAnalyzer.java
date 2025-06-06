@@ -11,9 +11,6 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.github.javaparser.ParserConfiguration;
-import com.github.javaparser.StaticJavaParser;
-
 import io.github.jitawangzi.jdepend.config.AppConfig;
 import io.github.jitawangzi.jdepend.core.analyzer.DependencyCollector;
 import io.github.jitawangzi.jdepend.core.analyzer.MethodDependencyAnalyzer;
@@ -23,6 +20,7 @@ import io.github.jitawangzi.jdepend.core.processor.ContentProcessor;
 import io.github.jitawangzi.jdepend.core.processor.TokenCounter;
 import io.github.jitawangzi.jdepend.util.ClipboardUtil;
 import io.github.jitawangzi.jdepend.util.FileLocator;
+import io.github.jitawangzi.jdepend.util.JavaParserInit;
 
 /**
  * 用于将Java源代码文件转换为提示文本的工具类
@@ -31,12 +29,6 @@ import io.github.jitawangzi.jdepend.util.FileLocator;
  */
 public class ClassAnalyzer {
 	private static Logger log = LoggerFactory.getLogger(ClassAnalyzer.class);
-	static {
-		// 初始化JavaParser配置
-		ParserConfiguration config = new ParserConfiguration();
-		config.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21);
-		StaticJavaParser.setConfiguration(config);
-	}
 	/**
 	 * 主方法
 	 * 
@@ -44,6 +36,7 @@ public class ClassAnalyzer {
 	 * @throws Exception 如果分析过程中发生错误
 	 */
 	public static void main(String[] args) throws Exception {
+		JavaParserInit.init();
 		// 加载配置
 		AppConfig config = AppConfig.INSTANCE;
 		// 初始化文件定位器
@@ -82,11 +75,13 @@ public class ClassAnalyzer {
 			}
 
 			Path file = locator.locate(dep.getClassName());
-			if (file != null) {
-				String original = Files.readString(file);
-				originalContents.put(dep.getClassName(), original);
-				processedContents.put(dep.getClassName(), processor.process(dep.getClassName(), original));
+			if (file == null) {
+				log.warn("无法找到类文件: {}", dep.getClassName());
+				continue; // 如果找不到文件，则跳过，比如内部类
 			}
+			String original = Files.readString(file);
+			originalContents.put(dep.getClassName(), original);
+			processedContents.put(dep.getClassName(), processor.process(original));
 		}
 
 		// 计算token统计

@@ -1,0 +1,247 @@
+package io.github.jitawangzi.jdepend.util;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.maven.model.Dependency;
+import org.apache.maven.model.Model;
+import org.apache.maven.model.Parent;
+import org.apache.maven.model.Repository;
+import org.apache.maven.model.building.ModelSource;
+import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
+import org.apache.maven.model.resolution.ModelResolver;
+import org.apache.maven.shared.invoker.DefaultInvocationRequest;
+import org.apache.maven.shared.invoker.DefaultInvoker;
+import org.apache.maven.shared.invoker.InvocationRequest;
+import org.apache.maven.shared.invoker.InvocationResult;
+import org.apache.maven.shared.invoker.Invoker;
+import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.github.javaparser.ParserConfiguration;
+import com.github.javaparser.StaticJavaParser;
+import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
+import com.github.javaparser.symbolsolver.JavaSymbolSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
+
+import io.github.jitawangzi.jdepend.config.AppConfig;
+
+public class JavaParserInit {
+	private static Logger log = LoggerFactory.getLogger(JavaParserInit.class);
+
+	public static void init() {
+		try {
+			// 设置jdk版本语法
+			ParserConfiguration config = new ParserConfiguration();
+			config.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17);
+			StaticJavaParser.setConfiguration(config);
+
+			// 1. 创建类型解析器 (TypeSolver)
+			CombinedTypeSolver typeSolver = new CombinedTypeSolver();
+
+			// 主项目的根路径
+			String projectRootPath = AppConfig.INSTANCE.getProjectRootPath();
+			File pomFile = new File(projectRootPath, "pom.xml");
+
+			// 添加项目及其所有模块的源码路径
+			addAllModuleSourceDirectories(typeSolver, pomFile);
+
+			// 添加 JDK 类解析器 (ReflectionTypeSolver)
+			typeSolver.add(new ReflectionTypeSolver());
+
+			// 解析 Maven 依赖并添加到 TypeSolver
+			List<File> jars = resolveMavenDependencies(pomFile.getAbsolutePath());
+			for (File jar : jars) {
+				typeSolver.add(new JarTypeSolver(jar));
+			}
+
+			// 2. 配置 SymbolSolver
+			JavaSymbolSolver symbolSolver = new JavaSymbolSolver(typeSolver);
+			StaticJavaParser.getParserConfiguration().setSymbolResolver(symbolSolver);
+		} catch (Exception e) {
+			log.error("初始化JavaParser失败: ", e);
+			System.exit(1);
+		}
+	}
+
+	/**
+	 * 使用MavenXpp3Reader添加项目及其所有模块的源码目录
+	 * @throws IOException 
+	 * @throws FileNotFoundException 
+	 * @throws XmlPullParserException 
+	 */
+	private static void addAllModuleSourceDirectories(CombinedTypeSolver typeSolver, File pomFile)
+			throws FileNotFoundException, IOException, XmlPullParserException {
+
+		// 添加当前项目的源码目录
+		addSourceDirectory(typeSolver, pomFile.getParentFile());
+
+		// 读取POM文件
+		try (FileReader reader = new FileReader(pomFile)) {
+			MavenXpp3Reader mavenReader = new MavenXpp3Reader();
+			Model model = mavenReader.read(reader);
+
+			// 处理模块
+			if (model.getModules() != null) {
+				for (String moduleName : model.getModules()) {
+					File moduleDir;
+					if (moduleName.startsWith("../")) {
+						// 处理上级目录的模块
+						moduleDir = new File(pomFile.getParentFile().getParentFile(), moduleName.substring(3));
+					} else {
+						// 处理子目录的模块
+						moduleDir = new File(pomFile.getParentFile(), moduleName);
+					}
+
+					File modulePomFile = new File(moduleDir, "pom.xml");
+					if (modulePomFile.exists()) {
+						// 递归处理模块
+						addAllModuleSourceDirectories(typeSolver, modulePomFile);
+					} else {
+						System.err.println("Module POM file not found: " + modulePomFile.getAbsolutePath());
+					}
+				}
+			}
+		}
+
+	}
+
+	/**
+	 * 添加单个目录的源码路径
+	 */
+	private static void addSourceDirectory(CombinedTypeSolver typeSolver, File projectDir) {
+		File srcMainJava = new File(projectDir, "src/main/java");
+		if (srcMainJava.exists() && srcMainJava.isDirectory()) {
+			typeSolver.add(new JavaParserTypeSolver(srcMainJava));
+			log.debug("Added source directory: {}", srcMainJava.getAbsolutePath());
+		}
+	}
+	/**
+	 * Maven模型解析器的简单实现
+	 */
+	private static class DefaultModelResolver implements ModelResolver {
+		@Override
+		public ModelSource resolveModel(String groupId, String artifactId, String version) {
+			return null;
+		}
+
+		@Override
+		public ModelSource resolveModel(Dependency dependency) {
+			return null;
+		}
+
+		@Override
+		public ModelSource resolveModel(Parent parent) {
+			return null;
+		}
+
+		@Override
+		public void addRepository(Repository repository) {
+			// 不做任何事
+		}
+
+		@Override
+		public void addRepository(Repository repository, boolean replace) {
+			// 不做任何事
+		}
+
+		@Override
+		public ModelResolver newCopy() {
+			return this;
+		}
+
+	}
+	/**
+	 * 解析Maven项目的所有依赖，返回依赖的JAR文件列表
+	 */
+	public static List<File> resolveMavenDependencies(String pomFilePath) throws Exception {
+		List<File> jars = new ArrayList<>();
+
+		// 检查Maven Home
+		String mavenHome = System.getenv("M2_HOME");
+		if (mavenHome == null || mavenHome.isEmpty()) {
+			mavenHome = System.getenv("MAVEN_HOME");
+		}
+
+		if (mavenHome == null || mavenHome.isEmpty()) {
+			throw new IllegalStateException("Maven home not found. Please set M2_HOME or MAVEN_HOME environment variable.");
+		}
+
+		// 创建临时文件存储类路径
+		File tempFile = File.createTempFile("maven-classpath", ".txt");
+		tempFile.deleteOnExit();
+
+		// 配置Maven命令
+		InvocationRequest request = new DefaultInvocationRequest();
+		request.setPomFile(new File(pomFilePath));
+		// 使用mdep.outputFile参数直接将依赖写入文件
+		request.setGoals(List.of("dependency:build-classpath", "-Dmdep.outputFile=" + tempFile.getAbsolutePath()));
+		request.setBatchMode(true);
+		request.setQuiet(true); // 设置为安静模式,不要控制台输出
+
+		// 执行Maven命令
+		Invoker invoker = new DefaultInvoker();
+		invoker.setMavenHome(new File(mavenHome));
+		InvocationResult result = invoker.execute(request);
+
+		if (result.getExitCode() != 0) {
+			throw new Exception("Maven command failed with exit code: " + result.getExitCode());
+		}
+
+		// 直接从文件读取依赖列表
+		String classpath = Files.readString(tempFile.toPath()).trim();
+		// 获取系统特定的路径分隔符
+		String pathSeparator = System.getProperty("path.separator");
+
+		// 解析依赖
+		for (String path : classpath.split(pathSeparator)) {
+			if (path.trim().endsWith(".jar")) {
+				File jarFile = new File(path.trim());
+				if (jarFile.exists() && jarFile.isFile()) {
+					jars.add(jarFile);
+				}
+			}
+		}
+
+		return jars;
+	}
+
+	public static void main(String[] args) throws Exception {
+		init();
+		// 解析Java文件
+		File sourceFile = new File(
+				"C:\\work_all\\work\\server\\game\\src\\main\\java\\cn\\game\\games\\net\\game\\module\\develop\\pet\\PetHandler.java");
+		CompilationUnit cu = StaticJavaParser.parse(sourceFile);
+		// 遍历类和方法并解析方法调用
+		cu.findAll(ClassOrInterfaceDeclaration.class).forEach(clazz -> {
+			System.out.println("类: " + clazz.getName());
+			clazz.findAll(MethodDeclaration.class).forEach(method -> {
+				System.out.println("  方法: " + method.getName());
+				method.findAll(MethodCallExpr.class).forEach(methodCall -> {
+					try {
+						ResolvedMethodDeclaration resolvedMethod = methodCall.resolve();
+						String classsName = resolvedMethod.getPackageName() + "." + resolvedMethod.getClassName();
+						String methodName = resolvedMethod.getName();
+						System.out.println("    调用了: " + classsName + "." + methodName);
+					} catch (Exception e) {
+						System.out.println("    无法解析方法调用: " + methodCall);
+						e.printStackTrace();
+					}
+				});
+			});
+		});
+	}
+}

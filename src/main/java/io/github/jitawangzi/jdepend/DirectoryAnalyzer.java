@@ -13,9 +13,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
-import com.github.javaparser.ParserConfiguration;
-import com.github.javaparser.StaticJavaParser;
-
 import io.github.jitawangzi.jdepend.config.AppConfig;
 import io.github.jitawangzi.jdepend.config.RuntimeConfig;
 import io.github.jitawangzi.jdepend.core.processor.ContentProcessor;
@@ -23,6 +20,7 @@ import io.github.jitawangzi.jdepend.core.processor.TokenCounter;
 import io.github.jitawangzi.jdepend.util.ClipboardUtil;
 import io.github.jitawangzi.jdepend.util.DirectoryTreeBuilder;
 import io.github.jitawangzi.jdepend.util.FileMatcher;
+import io.github.jitawangzi.jdepend.util.JavaParserInit;
 
 /**
  * 用于将源代码文件转换为提示文本的工具类
@@ -34,12 +32,6 @@ public class DirectoryAnalyzer {
 
 	// 使用系统换行符
 	private static final String LINE_SEPARATOR = System.lineSeparator();
-	static {
-		// 初始化JavaParser配置
-		ParserConfiguration config = new ParserConfiguration();
-		config.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21);
-		StaticJavaParser.setConfiguration(config);
-	}
 	/**
 	 * 计数器类，用于跟踪处理的文件数量和令牌数
 	 */
@@ -120,8 +112,7 @@ public class DirectoryAnalyzer {
 				// 使用ContentProcessor处理Java文件
 				String processedContent;
 				if (fileName.endsWith(".java")) {
-					String className = fileName.substring(0, fileName.lastIndexOf("."));
-					processedContent = contentProcessor.process(className, content);
+					processedContent = contentProcessor.process(content);
 				} else {
 					processedContent = content;
 				}
@@ -306,7 +297,9 @@ public class DirectoryAnalyzer {
 
 
 	public static void main(String[] args) {
+
 		try {
+			JavaParserInit.init();
 			RuntimeConfig.isDirectoryMode = true; // 设置为目录模式
 
 			String directory = AppConfig.INSTANCE.getDirectoryPath();

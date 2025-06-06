@@ -21,6 +21,7 @@ import com.github.javaparser.printer.DefaultPrettyPrinter;
 import io.github.jitawangzi.jdepend.config.AppConfig;
 import io.github.jitawangzi.jdepend.config.ImportConfig;
 import io.github.jitawangzi.jdepend.config.RuntimeConfig;
+import io.github.jitawangzi.jdepend.util.CommonUtil;
 
 /**
  * 内容处理器，负责处理类的源代码
@@ -52,10 +53,10 @@ public class ContentProcessor {
      * @param depth 依赖深度
      * @return 处理后的源代码
      */
-	public String process(String className, String sourceCode) {
+	public String process(String sourceCode) {
         try {
 			CompilationUnit cu = StaticJavaParser.parse(sourceCode);
-
+			String className = CommonUtil.getFullClassName(cu);
             // 处理导入语句
             processImports(cu);
             
@@ -80,7 +81,7 @@ public class ContentProcessor {
             
             return new DefaultPrettyPrinter().print(cu);
         } catch (Exception e) {
-			log.error("处理类失败: " + className, e);
+			log.error("处理类失败: " + sourceCode, e);
             return sourceCode;
         }
     }
@@ -96,15 +97,15 @@ public class ContentProcessor {
 			classDecl.getMethods().forEach(method -> {
 				if (method.getBody().isPresent()) {
 
-					if (method.getBody().get().getStatements().size() > 1) {
+					boolean singleLineMethod = CommonUtil.isSingleLineMethod(method);
+					if (!singleLineMethod) {
 						BlockStmt newBody = new BlockStmt();
-						// 直接添加注释到方法体
-						newBody.addOrphanComment(new LineComment(" Implementation details omitted"));
-
 						// 对于非void方法添加return语句
 						if (!method.getType().isVoidType()) {
 							addDefaultReturn(newBody, method.getType().toString());
 						}
+						// 直接添加注释到方法体
+						newBody.addOrphanComment(new LineComment(" Implementation details omitted"));
 
 						method.setBody(newBody);
 					}

@@ -15,6 +15,7 @@ import com.github.javaparser.ast.ImportDeclaration;
 
 import io.github.jitawangzi.jdepend.config.AppConfig;
 import io.github.jitawangzi.jdepend.core.model.ClassDependency;
+import io.github.jitawangzi.jdepend.util.CommonUtil;
 import io.github.jitawangzi.jdepend.util.FileLocator;
 
 /**
@@ -76,18 +77,9 @@ public class DependencyCollector {
 	 */
 	private boolean shouldSkip(String className, int currentDepth) {
 		return collected.contains(className) || (AppConfig.INSTANCE.getMaxDepth() > 0 && currentDepth > AppConfig.INSTANCE.getMaxDepth())
-				|| isExcludedPackage(className);
+				|| CommonUtil.isExcludedPackage(className);
 	}
 
-	/**
-	 * 判断是否是被排除的包
-	 * 
-	 * @param className 类名
-	 * @return 是否被排除
-	 */
-	private boolean isExcludedPackage(String className) {
-		return AppConfig.INSTANCE.getExcludedPackages().stream().anyMatch(className::startsWith);
-	}
 
 	/**
 	 * 获取项目中的导入类
@@ -103,27 +95,11 @@ public class DependencyCollector {
 
 		// 解析Java文件
 		CompilationUnit cu = StaticJavaParser.parse(file);
-		return cu.getImports().stream().map(ImportDeclaration::getNameAsString).filter(this::isProjectClass).collect(Collectors.toSet());
-	}
-
-	/**
-	 * 判断是否是项目内的类
-	 * 
-	 * @param className 类名
-	 * @return 是否是项目内的类
-	 */
-	private boolean isProjectClass(String className) {
-		Set<String> projectPackagePrefixes = AppConfig.INSTANCE.getProjectPackagePrefixes();
-		boolean ret = false;
-		for (String prefix : projectPackagePrefixes) {
-			if (className.startsWith(prefix)) {
-				ret = true;
-			}
-		}
-		if (!ret) {
-			return false;
-		}
-		return !isExcludedPackage(className);
+		return cu.getImports()
+				.stream()
+				.map(ImportDeclaration::getNameAsString)
+				.filter(CommonUtil::isProjectClass)
+				.collect(Collectors.toSet());
 	}
 
 	public List<ClassDependency> collectFromClasses(Set<String> classes) throws Exception {
