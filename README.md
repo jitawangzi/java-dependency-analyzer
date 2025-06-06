@@ -26,12 +26,12 @@
 
 
 ### 类分析模式
-类分析模式从一个主类开始，分析其依赖关系，生成包含所有相关类的优化代码。
+类分析模式从一个指定的类开始，分析其依赖关系，生成包含所有相关类的优化代码。
 
 修改application.properties配置文件：
 
 ```
-# 设置主类
+# 待分析的类，主类
 main.class=com.example.MyMainClass
 # 设置项目根目录
 project.root=/path/to/your/project
@@ -64,18 +64,19 @@ java -cp java-dependency-analyzer-1.0.0.jar io.github.jitawangzi.jdepend.Directo
 ```
 # 输出文件名
 output.file=output.md
-# 分析深度 (-1表示不限制)
+# 类模式下表示类的引用分析深度，目录模式下表示从根目录的目录递归深度 (-1 表示不限制)
 max.depth=-1
-# 排除的包前缀
+# 排除的包前缀，包内的文件都会跳过 (逗号分隔)
 excluded.packages=com.example.generated
-# 是否简化方法体
+# 是否简化方法体，忽略方法实现。类分析模式下，代表对于主类引用的其他类的方法
+# 在目录分析模式下， 表示所有的类的方法。  默认保留1行代码的方法体
 simplify.ref.methods=true
 # 是否省略getter/setter方法
 omit.bean.methods=true
 ```
 - 类分析模式配置
 ```
-# 主类
+# 待分析的类，主类
 main.class=com.example.MyMainClass
 # 项目根目录
 project.root=/path/to/your/project
@@ -86,9 +87,9 @@ keep.only.referenced.methods=true
 ```
 - 目录模式配置
 ```
-# 目录路径
+# 待分析的文件根目录，绝对路径
 directory.path=/path/to/your/directory
-# 包含的文件模式
+# 暂时不用
 directory.include.files=*.java,*.xml
 # 排除的文件模式
 directory.exclude.files=*.test.java
@@ -116,25 +117,10 @@ directory.allowed.extensions=java,xml,properties
 设置excluded.packages排除不需要的包
 启用omit.bean.methods=true和simplify.ref.methods=true优化代码
 
-**LLM无法处理生成的文件怎么办？**
-
-检查是否超出了LLM的token限制
-尝试减少分析深度或增加排除包
-使用output.file生成文件，然后分批提交给LLM
-
-**如何找到正确的主类？**
-
-通常是应用程序的入口类，包含main方法
-
-**分析结果有误怎么办？**
-
-检查project.root路径是否正确
-确保source.directories配置了正确的源码目录
-检查是否有必要的依赖库
 
 ## 已知问题
 - 内部类不会参与方法引用分析，也不会省略方法体。
-- 在某些复杂代码情况下，javaparser可能会解析失败，导致遗漏一些方法实际引用到的类。
+- 在某些复杂代码情况下，JavaParser可能会解析失败，导致遗漏一些方法实际调用的类。
 
 ## 贡献
 欢迎提交问题报告、功能请求和代码贡献。请先fork仓库，然后提交拉取请求。
