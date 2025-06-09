@@ -34,6 +34,7 @@ import io.github.jitawangzi.jdepend.project.ProjectParserFactory;
 public class FileLocator {
     private static final Logger log = LoggerFactory.getLogger(FileLocator.class);
     private final PathMatcher javaMatcher;
+	private static FileLocator INSTANCE;
     
     // 缓存已发现的源码目录路径
     private final Set<Path> sourceDirectories = Collections.synchronizedSet(new HashSet<>());
@@ -47,10 +48,25 @@ public class FileLocator {
     // 项目根目录
     private final Path projectRootPath;
     
+	/**
+	 * 获取单例实例
+	 * 
+	 * @return FileLocator实例
+	 */
+	public static FileLocator getInstance() {
+		if (INSTANCE == null) {
+			synchronized (FileLocator.class) {
+				if (INSTANCE == null) {
+					INSTANCE = new FileLocator();
+				}
+			}
+		}
+		return INSTANCE;
+	}
     /**
      * 构造函数
      */
-    public FileLocator() {
+	private FileLocator() {
         this.javaMatcher = FileSystems.getDefault().getPathMatcher("glob:**.java");
         this.projectRootPath = Paths.get(AppConfig.INSTANCE.getProjectRootPath());
         
@@ -61,7 +77,7 @@ public class FileLocator {
             if (this.projectParser == null) {
                 log.warn("Could not determine project type. Falling back to basic file search.");
             } else {
-                log.info("Using project parser: {}", projectParser.getClass().getSimpleName());
+//                log.info("Using project parser: {}", projectParser.getClass().getSimpleName());
                 // 预先扫描并缓存源码目录
                 scanSourceDirectories();
             }

@@ -1,22 +1,21 @@
 package io.github.jitawangzi.jdepend.core.analyzer;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 
 import io.github.jitawangzi.jdepend.config.AppConfig;
@@ -27,13 +26,14 @@ import io.github.jitawangzi.jdepend.util.FileLocator;
 
 /**
  * 方法级依赖分析器 - 分析实际方法调用来确定依赖关系
+ * 使用延迟分析模式，只在需要时分析类
  */
 public class MethodDependencyAnalyzer {
 	private static Logger log = LoggerFactory.getLogger(MethodDependencyAnalyzer.class);
 
-	private final FileLocator fileLocator;
 	private final Set<String> allDependencies = new HashSet<>();
 	private final Set<String> analyzedClasses = new HashSet<>();
+	private final Queue<ClassAnalysisTask> pendingClasses = new LinkedList<>();
 
 	// 方法调用依赖映射（方法到类的映射）key:完整类名+方法名，value:这个方法调用到的类集合
 	private Map<String, Set<String>> methodDependencies = new HashMap<>();
@@ -48,12 +48,30 @@ public class MethodDependencyAnalyzer {
 	private Set<String> reachableMethods = new HashSet<>();
 
 	/**
+	 * 表示待分析的类任务
+	 */
+	private static class ClassAnalysisTask {
+		private final String className;
+		private final int depth;
+
+		public ClassAnalysisTask(String className, int depth) {
+			this.className = className;
+			this.depth = depth;
+		}
+
+		public String getClassName() {
+			return className;
+		}
+
+		public int getDepth() {
+			return depth;
+		}
+	}
+
+	/**
 	 * 构造函数
-	 * 
-	 * @param config 配置对象
 	 */
 	public MethodDependencyAnalyzer() {
-		this.fileLocator = new FileLocator();
 	}
 
 	/**
@@ -64,11 +82,16 @@ public class MethodDependencyAnalyzer {
 	 * @throws IOException 如果分析过程中发生IO错误
 	 */
 	public Set<String> analyzeAllDependencies(String startClass) throws IOException {
-		// 首先收集所有潜在依赖
-		analyzeClassDependencies(startClass, 0);
-		log.info("共分析了 {} 个潜在依赖类", analyzedClasses.size());
-		// 使用JavaMethodCallAnalyzer分析方法调用
-		analyzeMethodCalls();
+		long timeMillis = System.currentTimeMillis();
+		log.info("开始从类 {} 分析依赖...", startClass);
+
+		// 添加起始类到待分析队列
+		pendingClasses.add(new ClassAnalysisTask(startClass, 0));
+
+		// 处理所有待分析类，直到队列为空
+		processClassQueue();
+
+		log.info("共分析了 {} 个依赖类,耗时 {} ms", analyzedClasses.size(), (System.currentTimeMillis() - timeMillis));
 
 		// 从主类开始计算可达方法
 		calculateReachableMethods(startClass);
@@ -86,8 +109,6 @@ public class MethodDependencyAnalyzer {
 				analyzeMethodDependenciesRecursively(methodName, actualDependencies, analyzedMethods);
 			}
 		}
-		// 这里移除非项目的类
-//		actualDependencies.removeIf(className -> !CommonUtil.isProjectClass(className));
 
 		// 添加必要的接口和父类依赖
 		Set<String> finalDependencies = new HashSet<>(actualDependencies);
@@ -97,6 +118,115 @@ public class MethodDependencyAnalyzer {
 
 		log.info("实际依赖分析完成，从 {} 个潜在依赖中筛选出 {} 个实际依赖", allDependencies.size(), finalDependencies.size());
 		return finalDependencies;
+	}
+
+	/**
+	 * 处理待分析类队列
+	 * 
+	 * @throws IOException 如果分析过程中发生IO错误
+	 */
+	private void processClassQueue() throws IOException {
+		while (!pendingClasses.isEmpty()) {
+			ClassAnalysisTask task = pendingClasses.poll();
+			String className = task.getClassName();
+			int depth = task.getDepth();
+
+			// 跳过已分析的类、排除的包，以及超出深度限制的类
+			if (analyzedClasses.contains(className) || CommonUtil.isExcludedPackage(className) || !CommonUtil.isProjectClass(className)
+					|| (AppConfig.INSTANCE.getMaxDepth() > 0 && depth > AppConfig.INSTANCE.getMaxDepth())) {
+				continue;
+			}
+
+			// 分析这个类
+			analyzeClass(className, depth);
+		}
+	}
+
+	/**
+	 * 分析单个类及其方法调用
+	 * 
+	 * @param className 类名
+	 * @param depth 当前深度
+	 * @throws IOException 如果分析过程中发生IO错误
+	 */
+	private void analyzeClass(String className, int depth) throws IOException {
+		// 标记该类已分析
+		analyzedClasses.add(className);
+		allDependencies.add(className);
+
+		// 解析类文件
+		CompilationUnit cu = CommonUtil.parseCompilationUnit(className);
+
+		boolean keepMethods = CommonUtil.shouldKeepMethods(className, depth);
+		if (keepMethods) {
+			// 收集类级别依赖（导入、接口、父类等）
+			Set<String> collectClassLevelDependencies = CommonUtil.collectClassLevelDependencies(cu, className);
+			for (String string : collectClassLevelDependencies) {
+				if (CommonUtil.isProjectClass(string) && !allDependencies.contains(string)) {
+					allDependencies.add(string);
+					pendingClasses.add(new ClassAnalysisTask(string, depth + 1));
+				}
+			}
+		}
+		// 分析方法调用
+		analyzeMethodCallsForClass(cu, className, depth);
+	}
+
+	/**
+	 * 分析单个类文件的方法调用
+	 * 
+	 * @param classFile 类文件路径
+	 * @param className 类名
+	 */
+	private void analyzeMethodCallsForClass(CompilationUnit cu, String className, int depth) {
+		try {
+			// 分析类中的方法调用
+			Map<String, MethodCallInfo> methodCalls = JavaMethodCallAnalyzer.analyzeJavaFile(cu);
+
+			// 处理分析结果
+			for (MethodCallInfo info : methodCalls.values()) {
+				String callerMethod = className + "." + info.getMethodName();
+
+				// 初始化依赖集合
+				methodDependencies.putIfAbsent(callerMethod, new HashSet<>());
+				methodToMethodDependencies.putIfAbsent(callerMethod, new HashSet<>());
+
+				// 处理被调用的方法
+				for (Map.Entry<String, List<JavaMethodCallAnalyzer.MethodCall>> entry : info.getMethodCalls().entrySet()) {
+					for (JavaMethodCallAnalyzer.MethodCall call : entry.getValue()) {
+						String scope = call.getScope();
+						String methodName = call.getMethodName();
+
+						// 调用类的全限定名
+						String calledClass = scope;
+						// 如果是当前类的方法调用
+						if (scope.equals("this")) {
+							calledClass = className;
+						}
+
+						if (CommonUtil.isProjectClass(calledClass)) {
+							String calledMethod = calledClass + "." + methodName;
+							methodDependencies.get(callerMethod).add(calledClass);
+							methodToMethodDependencies.get(callerMethod).add(calledMethod);
+
+							// 更新方法引用信息
+							methodReferences.putIfAbsent(calledMethod, new MethodReferenceInfo(calledClass, methodName));
+							methodReferences.get(calledMethod).addCaller(callerMethod);
+
+							// 将被调用的类添加到待分析队列
+							if (!analyzedClasses.contains(calledClass)) {
+//								pendingClasses.add(new ClassAnalysisTask(calledClass, 0)); // 重置深度，因为这是直接调用
+								pendingClasses.add(new ClassAnalysisTask(calledClass, depth + 1));
+							}
+						} else {
+							log.debug("跳过非项目类的调用: {}", calledClass);
+						}
+					}
+				}
+			}
+		} catch (Exception e) {
+			log.error("分析类 {} 的方法调用时出错", className, e);
+		}
 	}
 
 	/**
@@ -167,198 +297,6 @@ public class MethodDependencyAnalyzer {
 	}
 
 	/**
-	 * 分析单个类的所有潜在依赖
-	 * 
-	 * @param className 类名
-	 * @param depth 当前深度
-	 * @throws IOException 如果分析过程中发生IO错误
-	 */
-	private void analyzeClassDependencies(String className, int depth) throws IOException {
-		// 防止循环依赖和超出深度限制
-		if (analyzedClasses.contains(className) || CommonUtil.isExcludedPackage(className)
-				|| (AppConfig.INSTANCE.getMaxDepth() > 0 && depth > AppConfig.INSTANCE.getMaxDepth())) {
-			return;
-		}
-
-		// 标记该类已分析
-		analyzedClasses.add(className);
-		allDependencies.add(className);
-
-		// 查找类文件
-		Path file = fileLocator.locate(className);
-		if (file == null) {
-			log.warn("找不到类文件: {}", className);
-			return;
-		}
-
-		// 解析类文件
-		String source = Files.readString(file);
-		CompilationUnit cu = StaticJavaParser.parse(source);
-
-		// 1. 从导入语句中收集依赖
-		for (ImportDeclaration importDecl : cu.getImports()) {
-			String importName = importDecl.getNameAsString();
-			if (CommonUtil.isProjectClass(importName)) {
-				// 检查是否是通配符导入 (例如: import com.example.*)
-				if (importDecl.isAsterisk()) {
-					// 通配符导入处理
-					String packageName = importDecl.getNameAsString();
-					// TODO: 这里可以进一步处理通配符导入，但目前我们只是记录日志
-					log.warn("发现通配符导入: {}.*  ，暂时没有处理这种依赖", packageName);
-				} else {
-					// 具体类导入处理
-					allDependencies.add(importName);
-					// 递归分析导入的类
-					analyzeClassDependencies(importName, depth + 1);
-				}
-
-			}
-		}
-
-		// 2. 查找接口和父类
-		cu.findAll(ClassOrInterfaceDeclaration.class).forEach(classDecl -> {
-			// 收集实现的接口
-			for (ClassOrInterfaceType implementedType : classDecl.getImplementedTypes()) {
-				String typeName = implementedType.getNameAsString();
-				for (ImportDeclaration importDecl : cu.getImports()) {
-					String importName = importDecl.getNameAsString();
-					if (importName.endsWith("." + typeName)) {
-						if (CommonUtil.isProjectClass(importName)) {
-							allDependencies.add(importName);
-							try {
-								analyzeClassDependencies(importName, depth + 1);
-							} catch (IOException e) {
-								log.error("无法分析接口: {}", importName, e);
-							}
-						}
-					}
-				}
-			}
-
-			// 收集继承的类
-			for (ClassOrInterfaceType extendedType : classDecl.getExtendedTypes()) {
-				String typeName = extendedType.getNameAsString();
-				for (ImportDeclaration importDecl : cu.getImports()) {
-					String importName = importDecl.getNameAsString();
-					if (importName.endsWith("." + typeName)) {
-						if (CommonUtil.isProjectClass(importName)) {
-							allDependencies.add(importName);
-							try {
-								analyzeClassDependencies(importName, depth + 1);
-							} catch (IOException e) {
-								log.error("无法分析父类: {}", importName, e);
-							}
-						}
-					}
-				}
-			}
-		});
-
-		// 3. 从字段声明中收集依赖
-		cu.findAll(FieldDeclaration.class).forEach(field -> {
-			field.getVariables().forEach(var -> {
-				String fieldTypeName = var.getType().asString();
-				// 查找匹配的导入
-				for (ImportDeclaration importDecl : cu.getImports()) {
-					String importName = importDecl.getNameAsString();
-					if (importName.endsWith("." + fieldTypeName) || (fieldTypeName.contains("<")
-							&& importName.endsWith("." + fieldTypeName.substring(0, fieldTypeName.indexOf("<"))))) {
-						if (CommonUtil.isProjectClass(importName)) {
-							allDependencies.add(importName);
-							try {
-								analyzeClassDependencies(importName, depth + 1);
-							} catch (IOException e) {
-								log.error("无法分析字段类型: {}", importName, e);
-							}
-						}
-					}
-				}
-
-				// 检查字段类型中的泛型参数
-				if (fieldTypeName.contains("<") && fieldTypeName.contains(">")) {
-					String genericPart = fieldTypeName.substring(fieldTypeName.indexOf("<") + 1, fieldTypeName.lastIndexOf(">"));
-					for (String typePart : genericPart.split(",")) {
-						typePart = typePart.trim();
-						for (ImportDeclaration importDecl : cu.getImports()) {
-							String importName = importDecl.getNameAsString();
-							if (importName.endsWith("." + typePart)) {
-								if (CommonUtil.isProjectClass(importName)) {
-									allDependencies.add(importName);
-									try {
-										analyzeClassDependencies(importName, depth + 1);
-									} catch (IOException e) {
-										log.error("无法分析泛型参数: {}", importName, e);
-									}
-								}
-							}
-						}
-					}
-				}
-			});
-		});
-	}
-
-	/**
-	 * 使用JavaMethodCallAnalyzer分析所有类的方法调用关系
-	 * 
-	 * @throws IOException 如果分析过程中发生IO错误
-	 */
-	private void analyzeMethodCalls() throws IOException {
-		log.info("开始分析方法调用关系...");
-
-		// 分析每个已发现的类
-		for (String className : analyzedClasses) {
-			Path classFile = fileLocator.locate(className);
-			if (classFile != null) {
-				try {
-					// 分析类中的方法调用
-					Map<String, MethodCallInfo> methodCalls = JavaMethodCallAnalyzer.analyzeJavaFile(classFile.toString());
-
-					// 处理分析结果
-					for (MethodCallInfo info : methodCalls.values()) {
-						String callerMethod = className + "." + info.getMethodName();
-
-						// 初始化依赖集合
-						methodDependencies.putIfAbsent(callerMethod, new HashSet<>());
-						methodToMethodDependencies.putIfAbsent(callerMethod, new HashSet<>());
-
-						// 处理被调用的方法
-						for (Map.Entry<String, List<JavaMethodCallAnalyzer.MethodCall>> entry : info.getMethodCalls().entrySet()) {
-							for (JavaMethodCallAnalyzer.MethodCall call : entry.getValue()) {
-								String scope = call.getScope();
-								String methodName = call.getMethodName();
-
-								// 调用类的全限定名
-								String calledClass = scope;
-								// 如果是当前类的方法调用
-								if (scope.equals("this")) {
-									calledClass = className;
-								}
-								if (CommonUtil.isProjectClass(calledClass)) {
-									String calledMethod = calledClass + "." + methodName;
-									methodDependencies.get(callerMethod).add(calledClass);
-									methodToMethodDependencies.get(callerMethod).add(calledMethod);
-
-									// 更新方法引用信息
-									methodReferences.putIfAbsent(calledMethod, new MethodReferenceInfo(calledClass, methodName));
-									methodReferences.get(calledMethod).addCaller(callerMethod);
-								} else {
-									log.debug("跳过非项目类的调用: {}", calledClass);
-								}
-
-							}
-						}
-					}
-				} catch (Exception e) {
-					log.error("分析类 {} 的方法调用时出错", className, e);
-				}
-			}
-		}
-
-		log.info("方法调用关系分析完成，共分析 {} 个方法", methodToMethodDependencies.size());
-	}
-
-	/**
 	 * 递归分析方法依赖
 	 * 
 	 * @param methodName 方法名
@@ -403,10 +341,9 @@ public class MethodDependencyAnalyzer {
 	 */
 	private void addEssentialDependencies(String className, Set<String> dependencies) {
 		try {
-			Path file = fileLocator.locate(className);
+			Path file = FileLocator.getInstance().locate(className);
 			if (file != null) {
-				String source = Files.readString(file);
-				CompilationUnit cu = StaticJavaParser.parse(source);
+				CompilationUnit cu = CommonUtil.parseCompilationUnit(className);
 				// 添加接口和父类
 				cu.findAll(ClassOrInterfaceDeclaration.class).forEach(classDecl -> {
 					// 添加实现的接口
@@ -437,11 +374,61 @@ public class MethodDependencyAnalyzer {
 						}
 					}
 				});
-
 			}
 		} catch (Exception e) {
 			log.error("添加必要依赖时出错", e);
 		}
+	}
+
+	/**
+	 * 分析多个类的实际依赖
+	 * 
+	 * @param classes 要分析的类集合
+	 * @return 实际依赖的类集合
+	 * @throws IOException 如果分析过程中发生IO错误
+	 */
+	public Set<String> analyzeAllDependenciesForClasses(Set<String> classes) throws IOException {
+		log.info("开始分析多个类的依赖关系，共 {} 个类", classes.size());
+
+		// 将所有类添加到待分析队列
+		for (String className : classes) {
+			pendingClasses.add(new ClassAnalysisTask(className, 0));
+		}
+
+		// 处理所有待分析类
+		processClassQueue();
+
+		// 计算实际依赖
+		return calculateActualDependencies(classes);
+	}
+
+	/**
+	 * 计算指定入口类的实际依赖
+	 * 
+	 * @param entryClasses 入口类集合
+	 * @return 实际依赖的类集合
+	 */
+	private Set<String> calculateActualDependencies(Set<String> entryClasses) {
+		Set<String> actualDependencies = new HashSet<>();
+		Set<String> analyzedMethods = new HashSet<>();
+
+		// 从所有入口类开始分析
+		entryClasses.forEach(entryClass -> {
+			// 添加入口类本身
+			actualDependencies.add(entryClass);
+
+			// 收集所有相关方法
+			methodToMethodDependencies.keySet()
+					.stream()
+					.filter(m -> m.startsWith(entryClass + "."))
+					.forEach(method -> analyzeMethodDependenciesRecursively(method, actualDependencies, analyzedMethods));
+		});
+
+		// 添加必要的接口和父类依赖
+		Set<String> finalDependencies = new HashSet<>(actualDependencies);
+		actualDependencies.forEach(className -> addEssentialDependencies(className, finalDependencies));
+
+		return finalDependencies;
 	}
 
 	/**
@@ -469,40 +456,5 @@ public class MethodDependencyAnalyzer {
 	 */
 	public Set<String> getReachableMethods() {
 		return reachableMethods;
-	}
-
-	public Set<String> analyzeAllDependenciesForClasses(Set<String> classes) throws IOException {
-		classes.forEach(className -> {
-			try {
-				analyzeClassDependencies(className, 0);
-			} catch (IOException e) {
-				log.error("无法分析类: " + className, e);
-			}
-		});
-		analyzeMethodCalls();
-		return calculateActualDependencies(classes);
-	}
-
-	private Set<String> calculateActualDependencies(Set<String> entryClasses) {
-		Set<String> actualDependencies = new HashSet<>();
-		Set<String> analyzedMethods = new HashSet<>();
-
-		// 从所有入口类开始分析
-		entryClasses.forEach(entryClass -> {
-			// 添加入口类本身
-			actualDependencies.add(entryClass);
-
-			// 收集所有相关方法
-			methodToMethodDependencies.keySet()
-					.stream()
-					.filter(m -> m.startsWith(entryClass + "."))
-					.forEach(method -> analyzeMethodDependenciesRecursively(method, actualDependencies, analyzedMethods));
-		});
-
-		// 添加必要的接口和父类依赖
-		Set<String> finalDependencies = new HashSet<>(actualDependencies);
-		actualDependencies.forEach(className -> addEssentialDependencies(className, finalDependencies));
-
-		return finalDependencies;
 	}
 }

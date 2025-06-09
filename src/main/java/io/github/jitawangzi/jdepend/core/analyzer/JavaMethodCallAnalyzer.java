@@ -1,6 +1,5 @@
 package io.github.jitawangzi.jdepend.core.analyzer;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -12,7 +11,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -25,6 +23,7 @@ import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
 
 import io.github.jitawangzi.jdepend.config.AppConfig;
+import io.github.jitawangzi.jdepend.util.CommonUtil;
 import io.github.jitawangzi.jdepend.util.ParseUtil;
 
 /**
@@ -114,19 +113,15 @@ public class JavaMethodCallAnalyzer {
 	/**
 	 * 分析单个Java文件中的方法调用
 	 * 
-	 * @param javaFilePath 待分析的Java文件路径
-	 * @param sourceDirs 源码目录路径列表（用于解析依赖）
+	 * @param CompilationUnit cu 
 	 * @return 方法调用信息的Map，key为调用方法名(类里的方法)，value为方法调用信息（调用了哪些方法）
 	 * @throws IOException 如果文件读取异常
 	 */
-	public static Map<String, MethodCallInfo> analyzeJavaFile(String javaFilePath) throws IOException {
-		// 解析Java文件
-		File sourceFile = new File(javaFilePath);
-		CompilationUnit cu = StaticJavaParser.parse(sourceFile);
+	public static Map<String, MethodCallInfo> analyzeJavaFile(CompilationUnit cu) throws IOException {
 
 		// 获取类名和包名
-		String className = cu.getPrimaryTypeName().orElse("");
-		String packageName = cu.getPackageDeclaration().map(pd -> pd.getName().asString()).orElse("");
+		String className = CommonUtil.getClassName(cu);
+		String packageName = CommonUtil.getPackageName(cu);
 
 		// 收集方法调用信息
 		Map<String, MethodCallInfo> methodCallsMap = new HashMap<>();

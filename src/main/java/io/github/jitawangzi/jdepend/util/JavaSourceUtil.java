@@ -13,6 +13,7 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 /**
  * Java源码读取工具类，支持读取普通类和内部类的源代码
  */
+@Deprecated
 public class JavaSourceUtil {
 
 	/**

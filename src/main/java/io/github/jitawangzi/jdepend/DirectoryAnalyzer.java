@@ -93,7 +93,8 @@ public class DirectoryAnalyzer {
 				Path relativePath = startPath.relativize(file.getParent());
 				String relativePathStr = normalizePath(relativePath.toString());
 				String relativeFilePath = normalizePath(startPath.relativize(file).toString());
-
+				// 计算当前file所在目录的深度
+//				int currentDepth = startPath.relativize(file).getNameCount();
 				// 检查文件是否应该被处理
 				if (!shouldProcessFile(fileName, relativePathStr, config)) {
 					return FileVisitResult.CONTINUE;
@@ -112,7 +113,7 @@ public class DirectoryAnalyzer {
 				// 使用ContentProcessor处理Java文件
 				String processedContent;
 				if (fileName.endsWith(".java")) {
-					processedContent = contentProcessor.process(content);
+					processedContent = contentProcessor.process(null, content, 0);
 				} else {
 					processedContent = content;
 				}

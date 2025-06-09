@@ -11,6 +11,8 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.javaparser.ast.CompilationUnit;
+
 import io.github.jitawangzi.jdepend.config.AppConfig;
 import io.github.jitawangzi.jdepend.core.analyzer.DependencyCollector;
 import io.github.jitawangzi.jdepend.core.analyzer.MethodDependencyAnalyzer;
@@ -19,6 +21,7 @@ import io.github.jitawangzi.jdepend.core.model.ClassDependency;
 import io.github.jitawangzi.jdepend.core.processor.ContentProcessor;
 import io.github.jitawangzi.jdepend.core.processor.TokenCounter;
 import io.github.jitawangzi.jdepend.util.ClipboardUtil;
+import io.github.jitawangzi.jdepend.util.CommonUtil;
 import io.github.jitawangzi.jdepend.util.FileLocator;
 import io.github.jitawangzi.jdepend.util.JavaParserInit;
 
@@ -41,8 +44,7 @@ public class ClassAnalyzer {
 		// 加载配置
 		AppConfig config = AppConfig.INSTANCE;
 		// 初始化文件定位器
-		FileLocator locator = new FileLocator();
-		locator.addSourceDirectories(config.getSourceDirectories());
+		FileLocator.getInstance().addSourceDirectories(config.getSourceDirectories());
 
 		// 1. 常规分析
 		DependencyCollector collector = new DependencyCollector();
@@ -59,7 +61,7 @@ public class ClassAnalyzer {
 
 		// 4. 基于实际依赖过滤依赖列表
 		List<ClassDependency> filteredDependencies = dependencies.stream()
-				.filter(dep -> actualDependencies.contains(dep.getClassName()))
+//				.filter(dep -> actualDependencies.contains(dep.getClassName()))
 				.collect(Collectors.toList());
 
 
@@ -75,14 +77,15 @@ public class ClassAnalyzer {
 				continue; // 如果超过最大深度，则跳过
 			}
 
-			Path file = locator.locate(dep.getClassName());
+			Path file = FileLocator.getInstance().locate(dep.getClassName());
 			if (file == null) {
 				log.warn("无法找到类文件: {}", dep.getClassName());
 				continue; // 如果找不到文件，则跳过，比如内部类
 			}
 			String original = Files.readString(file);
+			CompilationUnit compilationUnit = CommonUtil.parseCompilationUnit(dep.getClassName());
 			originalContents.put(dep.getClassName(), original);
-			processedContents.put(dep.getClassName(), processor.process(original));
+			processedContents.put(dep.getClassName(), processor.process(compilationUnit, original, dep.getDepth()));
 		}
 
 		// 计算token统计

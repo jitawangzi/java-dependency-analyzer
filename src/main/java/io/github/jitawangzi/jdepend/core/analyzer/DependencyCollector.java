@@ -1,7 +1,5 @@
 package io.github.jitawangzi.jdepend.core.analyzer;
 
-import java.nio.file.Path;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -9,14 +7,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.github.javaparser.StaticJavaParser;
-import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.ImportDeclaration;
-
 import io.github.jitawangzi.jdepend.config.AppConfig;
 import io.github.jitawangzi.jdepend.core.model.ClassDependency;
 import io.github.jitawangzi.jdepend.util.CommonUtil;
-import io.github.jitawangzi.jdepend.util.FileLocator;
 
 /**
  * 依赖收集器，负责收集类的依赖关系
@@ -24,7 +17,6 @@ import io.github.jitawangzi.jdepend.util.FileLocator;
 public class DependencyCollector {
 	private final Map<String, Integer> classDepths = new HashMap<>();
 	private final Set<String> collected = new HashSet<>();
-	private final FileLocator fileLocator;
 
 	/**
 	 * 构造函数
@@ -32,7 +24,6 @@ public class DependencyCollector {
 	 * @param config 配置对象
 	 */
 	public DependencyCollector() {
-		this.fileLocator = new FileLocator();
 	}
 
 	/**
@@ -59,8 +50,8 @@ public class DependencyCollector {
 
 		classDepths.put(className, currentDepth);
 		collected.add(className);
-		Set<String> projectImports = getProjectImports(className);
-		for (String importClass : projectImports) {
+		Set<String> classes = CommonUtil.collectClassLevelDependencies(CommonUtil.parseCompilationUnit(className), className);
+		for (String importClass : classes) {
 			int nextDepth = currentDepth + 1;
 			if (!classDepths.containsKey(importClass) || classDepths.get(importClass) > nextDepth) {
 				collectDependencies(importClass, nextDepth);
@@ -80,27 +71,6 @@ public class DependencyCollector {
 				|| CommonUtil.isExcludedPackage(className);
 	}
 
-
-	/**
-	 * 获取项目中的导入类
-	 * 
-	 * @param className 类名
-	 * @return 导入的类集合
-	 * @throws Exception 如果获取过程中发生错误
-	 */
-	private Set<String> getProjectImports(String className) throws Exception {
-		Path file = fileLocator.locate(className);
-		if (file == null)
-			return Collections.emptySet();
-
-		// 解析Java文件
-		CompilationUnit cu = StaticJavaParser.parse(file);
-		return cu.getImports()
-				.stream()
-				.map(ImportDeclaration::getNameAsString)
-				.filter(CommonUtil::isProjectClass)
-				.collect(Collectors.toSet());
-	}
 
 	public List<ClassDependency> collectFromClasses(Set<String> classes) throws Exception {
 		classes.forEach(className -> {

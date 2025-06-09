@@ -46,16 +46,18 @@ public class ContentProcessor {
 
 	 
     /**
-     * 处理类的源代码
-     * 
-     * @param className 类名
-     * @param sourceCode 源代码
-     * @param depth 依赖深度
-     * @return 处理后的源代码
-     */
-	public String process(String sourceCode) {
+	 * 处理类的源代码
+	 * 
+	 * @param cu 编译单元
+	 * @param sourceCode 源代码
+	 * @param depth 依赖深度，一般在类分析模式下使用，用来判断是否需要简化方法体
+	 * @return 处理后的源代码
+	 */
+	public String process(CompilationUnit cu, String sourceCode, int depth) {
         try {
-			CompilationUnit cu = StaticJavaParser.parse(sourceCode);
+			if (cu == null) {
+				cu = StaticJavaParser.parse(sourceCode);
+			}
 			String className = CommonUtil.getFullClassName(cu);
             // 处理导入语句
             processImports(cu);
@@ -71,8 +73,8 @@ public class ContentProcessor {
                 beanMethodProcessor.process(cu, className);
             }
             
-			boolean isMainClass = className.equals(AppConfig.INSTANCE.getMainClass());
-			boolean keepMethods = shouldKeepMethods(className, isMainClass);
+//			boolean isMainClass = className.equals(AppConfig.INSTANCE.getMainClass());
+			boolean keepMethods = CommonUtil.shouldKeepMethods(className, depth);
             
             if (!keepMethods) {
                 // 处理剩余方法体（简化方法实现）
@@ -160,18 +162,6 @@ public class ContentProcessor {
 		} catch (ParseProblemException e) {
 			System.err.println("生成默认return语句失败: " + returnType);
 		}
-	}
-
-	/**
-	 * 判断是否应该保留方法体
-	 * 
-	 * @param className 类名
-	 * @param isMainClass 是否是主类
-	 * @return 是否应该保留方法体
-	 */
-	private boolean shouldKeepMethods(String className, boolean isMainClass) {
-		return isMainClass ? AppConfig.INSTANCE.isKeepMainMethods()
-				: (!AppConfig.INSTANCE.isSimplifyMethods() || AppConfig.INSTANCE.getMethodExceptions().contains(className));
 	}
 
 	/**

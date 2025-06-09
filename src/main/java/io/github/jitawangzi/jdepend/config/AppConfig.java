@@ -35,15 +35,11 @@ public interface AppConfig extends Config {
 	@Key("max.depth")
 	int getMaxDepth();
 
+	@Key("method.body.max.depth")
+	int getMethodBodyMaxDepth();
+
 	@Key("show.error.stacktrace")
 	boolean showErrorStacktrace();
-
-	/**
-	 * 是否保留主类方法体
-	 */
-	@DefaultValue("true")
-	@Key("keep.main.methods")
-	boolean isKeepMainMethods();
 
 	/**
 	 * 是否简化方法体
