@@ -24,6 +24,7 @@ import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
 
+import io.github.jitawangzi.jdepend.config.AppConfig;
 import io.github.jitawangzi.jdepend.util.ParseUtil;
 
 /**
@@ -149,9 +150,14 @@ public class JavaMethodCallAnalyzer {
 							log.debug("SymbolSolver解析" + className + "中的方法" + callerMethodName + "调用成功: " + resolvedClassName + " "
 									+ resolvedMethodName);
 						} catch (Exception e) {
-							log.error("SymbolSolver解析" + className + "中的方法" + callerMethodName + "调用失败,failCount : "
-									+ failedCount.incrementAndGet(), e);
 							log.debug("SymbolSolver解析" + className + "中的方法" + callerMethodName + "调用失败，退化为自定义方式 ");
+							if (AppConfig.INSTANCE.showErrorStacktrace()) {
+								log.error("SymbolSolver解析" + className + "中的方法" + callerMethodName + "调用失败,failCount : "
+										+ failedCount.incrementAndGet(), e);
+							} else {
+								log.error("SymbolSolver解析" + className + "中的方法" + callerMethodName + "调用失败,failCount : "
+										+ failedCount.incrementAndGet() + ",请检查代码是否有错误");
+							}
 							// 获取被调用的方法信息
 							resolvedMethodName = methodCall.getNameAsString();
 							// 正常不应该使用自定义方式，应该全部使用SymbolSolver解析
@@ -171,7 +177,11 @@ public class JavaMethodCallAnalyzer {
 						info.setPackageName(packageName);
 						info.addMethodCall(resolvedClassName, resolvedMethodName);
 					} catch (Exception e) {
-						log.error("    无法解析方法调用: " + methodCall, e);
+						if (AppConfig.INSTANCE.showErrorStacktrace()) {
+							log.error("解析方法调用失败: " + methodCall, e);
+						} else {
+							log.error("解析方法调用失败: " + methodCall + ",请检查代码是否有错误");
+						}
 					}
 				});
 			});

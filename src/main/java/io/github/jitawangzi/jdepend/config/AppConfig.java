@@ -21,6 +21,7 @@ public interface AppConfig extends Config {
 	@Key("project.root")
 	String getProjectRootPath();
 
+
 	/**
 	 * 获取主类名称
 	 */
@@ -34,6 +35,9 @@ public interface AppConfig extends Config {
 	@Key("max.depth")
 	int getMaxDepth();
 
+	@Key("show.error.stacktrace")
+	boolean showErrorStacktrace();
+
 	/**
 	 * 是否保留主类方法体
 	 */
@@ -42,11 +46,11 @@ public interface AppConfig extends Config {
 	boolean isKeepMainMethods();
 
 	/**
-	 * 是否简化引用方法
+	 * 是否简化方法体
 	 */
 	@DefaultValue("true")
-	@Key("simplify.ref.methods")
-	boolean isSimplifyRefMethods();
+	@Key("simplify.methods")
+	boolean isSimplifyMethods();
 
 	/**
 	 * 获取输出文件名

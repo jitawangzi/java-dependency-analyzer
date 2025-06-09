@@ -171,7 +171,7 @@ public class ContentProcessor {
 	 */
 	private boolean shouldKeepMethods(String className, boolean isMainClass) {
 		return isMainClass ? AppConfig.INSTANCE.isKeepMainMethods()
-				: (!AppConfig.INSTANCE.isSimplifyRefMethods() || AppConfig.INSTANCE.getMethodExceptions().contains(className));
+				: (!AppConfig.INSTANCE.isSimplifyMethods() || AppConfig.INSTANCE.getMethodExceptions().contains(className));
 	}
 
 	/**
