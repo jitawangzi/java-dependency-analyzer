@@ -11,7 +11,7 @@
   - 省略标准的getter/setter方法
   - 智能过滤导入声明
 - **多种分析模式**：
-  - 类分析模式：从一个主类开始，分析其依赖链
+  - 类分析模式：从一个待分析类开始，分析其依赖链
   - 目录分析模式：分析整个目录的文件，生成综合报告
 - **令牌计数**：估算原始代码和优化后代码的token数量，计算节省比例
 - **自动复制到剪贴板**：生成的结果自动复制到系统剪贴板，方便粘贴
@@ -111,12 +111,17 @@ directory.allowed.extensions=java,xml,properties
 - Markdown生成：将处理后的代码组织成结构化的Markdown文档
 
 ## 常见问题解答
-**如何减少生成文件的大小？**
+### 如何减少生成文件的大小？
+- 启用omit.bean.methods=true  省略getter  setter
+- 设置max.depth限制分析深度
 
-增加max.depth限制分析深度
-设置excluded.packages排除不需要的包
-启用omit.bean.methods=true和simplify.ref.methods=true优化代码
-
+**类分析模式**
+- 启用 keep.only.referenced.methods=true 排除没有引用到的方法。 
+- method.body.max.depth 省略方法体
+  
+**目录模式** 
+- 设置excluded.packages排除不需要的包
+- simplify.methods=true 省略方法体
 
 ## 已知问题
 - 内部类不会参与方法引用分析，也不会省略方法体。
