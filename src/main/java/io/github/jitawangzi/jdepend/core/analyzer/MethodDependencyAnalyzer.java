@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 
 import io.github.jitawangzi.jdepend.config.AppConfig;
@@ -31,7 +32,8 @@ import io.github.jitawangzi.jdepend.util.FileLocator;
 public class MethodDependencyAnalyzer {
 	private static Logger log = LoggerFactory.getLogger(MethodDependencyAnalyzer.class);
 
-	private final Set<String> allDependencies = new HashSet<>();
+	/** 类---- depth */
+	private final Map<String, Integer> allDependencies = new HashMap<String, Integer>();
 	private final Set<String> analyzedClasses = new HashSet<>();
 	private final Queue<ClassAnalysisTask> pendingClasses = new LinkedList<>();
 
@@ -152,18 +154,18 @@ public class MethodDependencyAnalyzer {
 	private void analyzeClass(String className, int depth) throws IOException {
 		// 标记该类已分析
 		analyzedClasses.add(className);
-		allDependencies.add(className);
+		allDependencies.put(className, depth);
 
 		// 解析类文件
 		CompilationUnit cu = CommonUtil.parseCompilationUnit(className);
 
 		boolean keepMethods = CommonUtil.shouldKeepMethods(className, depth);
-		if (keepMethods) {
+		if (keepMethods) {// 只有在保留方法体的时候，才需要处理引用的其他类，否则可以忽略
 			// 收集类级别依赖（导入、接口、父类等）
 			Set<String> collectClassLevelDependencies = CommonUtil.collectClassLevelDependencies(cu, className);
 			for (String string : collectClassLevelDependencies) {
-				if (CommonUtil.isProjectClass(string) && !allDependencies.contains(string)) {
-					allDependencies.add(string);
+				if (CommonUtil.isProjectClass(string) && !allDependencies.containsKey(string)) {
+					allDependencies.put(string, depth + 1);
 					pendingClasses.add(new ClassAnalysisTask(string, depth + 1));
 				}
 			}
@@ -216,7 +218,8 @@ public class MethodDependencyAnalyzer {
 							// 将被调用的类添加到待分析队列
 							if (!analyzedClasses.contains(calledClass)) {
 //								pendingClasses.add(new ClassAnalysisTask(calledClass, 0)); // 重置深度，因为这是直接调用
-								pendingClasses.add(new ClassAnalysisTask(calledClass, depth + 1));
+								int nextDepth = allDependencies.containsKey(calledClass) ? allDependencies.get(calledClass) : depth + 1;
+								pendingClasses.add(new ClassAnalysisTask(calledClass, nextDepth));
 							}
 						} else {
 							log.debug("跳过非项目类的调用: {}", calledClass);
@@ -313,14 +316,21 @@ public class MethodDependencyAnalyzer {
 
 		// 获取方法所在的类
 		String className = methodName.substring(0, methodName.lastIndexOf("."));
+		String simpleMethodName = methodName.substring(methodName.lastIndexOf(".") + 1);
 		actualDependencies.add(className);
 
-		// 获取这个方法直接引用的类
+		// 获取这个方法体里面直接引用的类
 		if (methodDependencies.containsKey(methodName)) {
 			Set<String> referencedClasses = methodDependencies.get(methodName);
 			actualDependencies.addAll(referencedClasses);
 		}
-
+		CompilationUnit cu = CommonUtil.parseCompilationUnit(className);
+		cu.findAll(MethodDeclaration.class).forEach(method -> {
+			if (method.getNameAsString().equals(simpleMethodName)) {
+				// 获取这个方法参数、返回值等引用的类
+				CommonUtil.collectDependenciesFromMethod(actualDependencies, method);
+			}
+		});
 		// 获取这个方法调用的所有方法
 		if (methodToMethodDependencies.containsKey(methodName)) {
 			Set<String> calledMethods = methodToMethodDependencies.get(methodName);
@@ -431,14 +441,6 @@ public class MethodDependencyAnalyzer {
 		return finalDependencies;
 	}
 
-	/**
-	 * 返回所有依赖
-	 * 
-	 * @return 所有依赖的集合
-	 */
-	public Set<String> getAllDependencies() {
-		return allDependencies;
-	}
 
 	/**
 	 * 获取方法引用信息
@@ -457,4 +459,13 @@ public class MethodDependencyAnalyzer {
 	public Set<String> getReachableMethods() {
 		return reachableMethods;
 	}
+
+	public Map<String, Set<String>> getMethodDependencies() {
+		return methodDependencies;
+	}
+
+	public Map<String, Set<String>> getMethodToMethodDependencies() {
+		return methodToMethodDependencies;
+	}
+
 }

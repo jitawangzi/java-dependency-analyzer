@@ -1,7 +1,12 @@
 package io.github.jitawangzi.jdepend.core.generator;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.github.javaparser.ast.body.MethodDeclaration;
 
@@ -11,7 +16,6 @@ import io.github.jitawangzi.jdepend.core.model.ClassDependency;
 import io.github.jitawangzi.jdepend.core.model.MethodDependency;
 import io.github.jitawangzi.jdepend.core.model.MethodReference;
 import io.github.jitawangzi.jdepend.core.processor.TokenCounter;
-import io.github.jitawangzi.jdepend.core.processor.TokenCounter.TokenStats;
 
 /**
  * Markdown生成器，用于生成分析结果的Markdown文档
@@ -46,8 +50,11 @@ public class MarkdownGenerator {
 
 		appendGetterAndSetterInfo(sb);
 
-		// 添加依赖树
-		appendDependencyTree(sb, dependencies);
+		// 添加依赖树TODO 待优化
+//		appendDependencyTree(sb, dependencies);
+
+		// 添加方法调用关系
+//		appendMethodDependencies(sb, methodDependencies, methodToMethodDependencies, reachableMethods);
 
 		// 添加代码内容
 		appendCodeContents(sb, classContents);
@@ -134,15 +141,64 @@ public class MarkdownGenerator {
 	}
 
 	/**
-	 * 添加依赖树
+	 * 添加依赖树 - 优化版本
 	 * 
 	 * @param sb StringBuilder对象
 	 * @param deps 依赖列表
 	 */
 	private void appendDependencyTree(StringBuilder sb, List<ClassDependency> deps) {
-		sb.append("## Dependency Tree\n```\n");
-		deps.forEach(d -> sb.append(indent(d.getDepth())).append(d.getClassName()).append("\n"));
-		sb.append("```\n\n");
+	    sb.append("## Dependency Tree\n```\n");
+	    
+	    // 找出根类(深度为0的类)
+	    String rootClass = deps.stream()
+	            .filter(d -> d.getDepth() == 0)
+	            .map(ClassDependency::getClassName)
+	            .findFirst()
+	            .orElse("Unknown");
+	    
+	    // 创建更直观的依赖树
+	    Map<String, List<String>> dependencyMap = new HashMap<>();
+	    for (int i = 0; i < deps.size(); i++) {
+	        ClassDependency current = deps.get(i);
+	        
+	        if (current.getDepth() == 0) {
+	            sb.append(current.getClassName()).append(" (Root)\n");
+	        } else {
+	            // 寻找当前类的父类(深度比当前类小1的最近类)
+	            String parent = null;
+	            for (int j = i - 1; j >= 0; j--) {
+	                if (deps.get(j).getDepth() == current.getDepth() - 1) {
+	                    parent = deps.get(j).getClassName();
+	                    break;
+	                }
+	            }
+	            
+	            if (parent != null) {
+	                dependencyMap.computeIfAbsent(parent, k -> new ArrayList<>()).add(current.getClassName());
+	            }
+	        }
+	    }
+	    
+	    // 递归构建依赖树
+	    appendDependencySubtree(sb, rootClass, dependencyMap, 0);
+	    
+	    sb.append("```\n\n");
+	}
+
+	/**
+	 * 递归构建依赖子树
+	 */
+	private void appendDependencySubtree(StringBuilder sb, String className, Map<String, List<String>> dependencyMap, int depth) {
+	    String indent = "  ".repeat(depth);
+	    
+	    if (depth > 0) {
+	        sb.append(indent).append("└─ ").append(className).append("\n");
+	    }
+	    
+	    List<String> dependencies = dependencyMap.getOrDefault(className, Collections.emptyList());
+	    for (String dependency : dependencies) {
+	        appendDependencySubtree(sb, dependency, dependencyMap, depth + 1);
+	    }
 	}
 
 	/**
@@ -201,42 +257,77 @@ public class MarkdownGenerator {
 	}
 
 	/**
-	 * 展示方法级依赖关系
+	 * 展示方法级依赖关系 - 优化版本
 	 * 
 	 * @param sb StringBuilder对象
 	 * @param methodDependencies 方法依赖映射
+	 * @param methodToMethodDependencies 方法到方法的依赖映射
+	 * @param reachableMethods 可达方法集合
 	 */
-	public void appendMethodDependencies(StringBuilder sb, Map<String, List<MethodDependency>> methodDependencies) {
-		sb.append("## Method Dependencies\n\n");
-		sb.append("This section shows the actual method-level dependencies between classes.\n\n");
+	public void appendMethodDependencies(StringBuilder sb, Map<String, List<MethodDependency>> methodDependencies,
+			Map<String, Set<String>> methodToMethodDependencies, Set<String> reachableMethods) {
+		sb.append("## Method Call Graph\n\n");
+		sb.append("This section visualizes the method call relationships between classes.\n\n");
+
+		// 构建调用图
+		sb.append("```\n");
+		sb.append("Method Call Graph Legend:\n");
+		sb.append("→ : Direct method call\n");
+		sb.append("* : Entry point or frequently called method\n\n");
+
+		// 按类分组展示方法调用
+		for (Map.Entry<String, List<MethodDependency>> entry : methodDependencies.entrySet()) {
+			String className = entry.getKey();
+			List<MethodDependency> methods = entry.getValue();
+
+			sb.append(className).append("\n");
+			sb.append("│\n");
+
+			for (MethodDependency method : methods) {
+				String methodSignature = method.getMethodSignature();
+				String fullMethodName = className + "#" + methodSignature;
+
+				// 标记入口点或频繁调用的方法
+				String marker = reachableMethods.contains(fullMethodName) ? "* " : "  ";
+				sb.append("├─").append(marker).append(methodSignature).append("\n");
+
+				// 显示该方法调用的其他方法
+				for (MethodReference ref : method.getCalledMethods()) {
+					sb.append("│  └─→ ").append(ref.getClassName()).append("#").append(ref.getMethodName()).append("\n");
+				}
+			}
+			sb.append("\n");
+		}
+		sb.append("```\n\n");
+
+		// 添加更详细的表格形式展示
+		sb.append("### Detailed Method Dependencies\n\n");
+		sb.append("| Caller Method | Called Methods |\n");
+		sb.append("|---------------|---------------|\n");
 
 		for (Map.Entry<String, List<MethodDependency>> entry : methodDependencies.entrySet()) {
 			String className = entry.getKey();
 			List<MethodDependency> methods = entry.getValue();
 
-			sb.append("### ").append(className).append("\n\n");
-
 			for (MethodDependency method : methods) {
-				sb.append("- **").append(method.getMethodSignature()).append("**\n");
-
-				if (!method.getReferencedTypes().isEmpty()) {
-					sb.append("  - Referenced types: ");
-					sb.append(String.join(", ", method.getReferencedTypes()));
-					sb.append("\n");
-				}
+				String methodSignature = method.getMethodSignature();
+				String fullMethodName = className + "#" + methodSignature;
 
 				if (!method.getCalledMethods().isEmpty()) {
-					sb.append("  - Calls methods:\n");
-					for (MethodReference ref : method.getCalledMethods()) {
-						sb.append("    - ").append(ref.getClassName()).append("#").append(ref.getMethodName()).append("\n");
-					}
-				}
+					sb.append("| ").append(fullMethodName).append(" | ");
 
-				sb.append("\n");
+					List<String> calledMethods = method.getCalledMethods()
+							.stream()
+							.map(ref -> ref.getClassName() + "#" + ref.getMethodName())
+							.collect(Collectors.toList());
+
+					sb.append(String.join("<br>", calledMethods));
+					sb.append(" |\n");
+				}
 			}
 		}
+		sb.append("\n");
 	}
-	
     
     /**
      * 添加被省略的访问器方法信息

@@ -2,8 +2,10 @@ package io.github.jitawangzi.jdepend.core.analyzer;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -33,28 +35,45 @@ public class DependencyCollector {
 	 * @throws Exception 如果收集过程中发生错误
 	 */
 	public List<ClassDependency> collect() throws Exception {
-		collectDependencies(AppConfig.INSTANCE.getMainClass(), 0);
+		collectDependenciesBFS(AppConfig.INSTANCE.getMainClass(), 0);
 		return classDepths.entrySet().stream().map(e -> new ClassDependency(e.getKey(), e.getValue())).collect(Collectors.toList());
 	}
 
 	/**
-	 * 收集一个类的依赖
+	 * 以广度优先方式收集类的依赖
 	 * 
-	 * @param className 类名
-	 * @param currentDepth 当前深度
+	 * @param startClassName 起始类名
+	 * @param startDepth 起始深度
 	 * @throws Exception 如果收集过程中发生错误
 	 */
-	private void collectDependencies(String className, int currentDepth) throws Exception {
-		if (shouldSkip(className, currentDepth))
-			return;
+	private void collectDependenciesBFS(String startClassName, int startDepth) throws Exception {
+		Queue<String> queue = new LinkedList<>();
+		Map<String, Integer> depthMap = new HashMap<>();
 
-		classDepths.put(className, currentDepth);
-		collected.add(className);
-		Set<String> classes = CommonUtil.collectClassLevelDependencies(CommonUtil.parseCompilationUnit(className), className);
-		for (String importClass : classes) {
-			int nextDepth = currentDepth + 1;
-			if (!classDepths.containsKey(importClass) || classDepths.get(importClass) > nextDepth) {
-				collectDependencies(importClass, nextDepth);
+		// 将起始类加入队列
+		queue.offer(startClassName);
+		depthMap.put(startClassName, startDepth);
+
+		while (!queue.isEmpty()) {
+			String className = queue.poll();
+			int currentDepth = depthMap.get(className);
+
+			if (shouldSkip(className, currentDepth))
+				continue;
+
+			classDepths.put(className, currentDepth);
+			collected.add(className);
+
+			Set<String> dependencies = CommonUtil.collectClassLevelDependencies(CommonUtil.parseCompilationUnit(className), className);
+
+			for (String dependencyClass : dependencies) {
+				int nextDepth = currentDepth + 1;
+
+				// 如果依赖类尚未被处理或现有深度大于新深度，则加入队列
+				if (!depthMap.containsKey(dependencyClass) || depthMap.get(dependencyClass) > nextDepth) {
+					queue.offer(dependencyClass);
+					depthMap.put(dependencyClass, nextDepth);
+				}
 			}
 		}
 	}
@@ -71,15 +90,14 @@ public class DependencyCollector {
 				|| CommonUtil.isExcludedPackage(className);
 	}
 
-
 	public List<ClassDependency> collectFromClasses(Set<String> classes) throws Exception {
-		classes.forEach(className -> {
+		for (String className : classes) {
 			try {
-				collectDependencies(className, 0);
+				collectDependenciesBFS(className, 0);
 			} catch (Exception e) {
 				System.err.println("Error analyzing class: " + className);
 			}
-		});
+		}
 		return convertToDependencyList();
 	}
 

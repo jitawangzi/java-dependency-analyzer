@@ -61,7 +61,7 @@ public class ClassAnalyzer {
 
 		// 4. 基于实际依赖过滤依赖列表
 		List<ClassDependency> filteredDependencies = dependencies.stream()
-//				.filter(dep -> actualDependencies.contains(dep.getClassName()))
+				.filter(dep -> actualDependencies.contains(dep.getClassName()))
 				.collect(Collectors.toList());
 
 

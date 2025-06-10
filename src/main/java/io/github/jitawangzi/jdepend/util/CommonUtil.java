@@ -200,46 +200,56 @@ public class CommonUtil {
 
 			// 4. 从方法参数和返回类型中收集依赖
 			cu.findAll(MethodDeclaration.class).forEach(method -> {
-				// 解析返回类型
-				if (!method.getType().isVoidType()) {
-					try {
-						ResolvedType returnType = method.getType().resolve();
-						collectTypeAndGenericDependencies(returnType, allDependencies);
-					} catch (Exception e) {
-						log.error("Failed to resolve return type: " + method.getType().asString());
-					}
-				}
-
-				// 解析方法参数
-				method.getParameters().forEach(param -> {
-					try {
-						ResolvedType paramType = param.getType().resolve();
-						collectTypeAndGenericDependencies(paramType, allDependencies);
-					} catch (Exception e) {
-						log.error("Failed to resolve parameter type: " + param.getType().asString());
-					}
-				});
-
-				// 解析抛出的异常
-				method.getThrownExceptions().forEach(exception -> {
-					try {
-						ResolvedType exceptionType = exception.resolve();
-						if (exceptionType.isReferenceType()) {
-							String qualifiedName = exceptionType.asReferenceType().getQualifiedName();
-							if (CommonUtil.isProjectClass(qualifiedName)) {
-								allDependencies.add(qualifiedName);
-							}
-						}
-					} catch (Exception e) {
-						log.error("Failed to resolve exception type: " + exception.asString());
-					}
-				});
+				collectDependenciesFromMethod(allDependencies, method);
 			});
 		} catch (Exception e) {
 			log.error("Error during dependency collection: " + e.getMessage());
 		}
 
 		return allDependencies;
+	}
+
+	/** 
+	 * 从方法参数和返回类型中收集依赖
+	 * 
+	 * @param allDependencies
+	 * @param method
+	 */
+	public static void collectDependenciesFromMethod(Set<String> allDependencies, MethodDeclaration method) {
+		// 解析返回类型
+		if (!method.getType().isVoidType()) {
+			try {
+				ResolvedType returnType = method.getType().resolve();
+				collectTypeAndGenericDependencies(returnType, allDependencies);
+			} catch (Exception e) {
+				log.error("Failed to resolve return type: " + method.getType().asString());
+			}
+		}
+
+		// 解析方法参数
+		method.getParameters().forEach(param -> {
+			try {
+				ResolvedType paramType = param.getType().resolve();
+				collectTypeAndGenericDependencies(paramType, allDependencies);
+			} catch (Exception e) {
+				log.error("Failed to resolve parameter type: " + param.getType().asString());
+			}
+		});
+
+		// 解析抛出的异常
+		method.getThrownExceptions().forEach(exception -> {
+			try {
+				ResolvedType exceptionType = exception.resolve();
+				if (exceptionType.isReferenceType()) {
+					String qualifiedName = exceptionType.asReferenceType().getQualifiedName();
+					if (CommonUtil.isProjectClass(qualifiedName)) {
+						allDependencies.add(qualifiedName);
+					}
+				}
+			} catch (Exception e) {
+				log.error("Failed to resolve exception type: " + exception.asString());
+			}
+		});
 	}
 
 	/**
