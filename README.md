@@ -11,7 +11,7 @@
   - 省略标准的getter/setter方法
   - 智能过滤导入声明
 - **多种分析模式**：
-  - 类分析模式：从一个主类开始，分析其依赖链
+  - 类分析模式：从一个待分析类开始，分析其依赖链
   - 目录分析模式：分析整个目录的文件，生成综合报告
 - **令牌计数**：估算原始代码和优化后代码的token数量，计算节省比例
 - **自动复制到剪贴板**：生成的结果自动复制到系统剪贴板，方便粘贴
@@ -48,8 +48,8 @@ java -cp java-dependency-analyzer-1.0.0.jar io.github.jitawangzi.jdepend.ClassAn
 # 设置目录路径
 directory.path=/path/to/your/directory
 # 配置文件过滤规则
-directory.include.files=*.java,*.xml
-directory.exclude.files=*.test.java
+directory.exclude.folders=target,build
+directory.allowed.extensions=java,proto,properties,xml,yml,yaml,go,md
 ```
 运行目录分析器：
 
@@ -58,48 +58,8 @@ java -cp java-dependency-analyzer-1.0.0.jar io.github.jitawangzi.jdepend.Directo
 ```
 #### 配置选项
 
-配置文件位于src/main/resources/application.properties，以下是主要配置选项：
+完整配置文件位于src/main/resources/application.properties：
 
-- 通用配置
-```
-# 输出文件名
-output.file=output.md
-# 类模式下表示类的引用分析深度，目录模式下表示从根目录的目录递归深度 (-1 表示不限制)
-max.depth=-1
-# 排除的包前缀，包内的文件都会跳过 (逗号分隔)
-excluded.packages=com.example.generated
-# 是否简化方法体，忽略方法实现。类分析模式下，代表对于主类引用的其他类的方法
-# 在目录分析模式下， 表示所有的类的方法。  默认保留1行代码的方法体
-simplify.ref.methods=true
-# 是否省略getter/setter方法
-omit.bean.methods=true
-```
-- 类分析模式配置
-```
-# 待分析的类，主类
-main.class=com.example.MyMainClass
-# 项目根目录
-project.root=/path/to/your/project
-# 是否保留主类方法体
-keep.main.methods=true
-# 是否只保留被引用的方法
-keep.only.referenced.methods=true
-```
-- 目录模式配置
-```
-# 待分析的文件根目录，绝对路径
-directory.path=/path/to/your/directory
-# 暂时不用
-directory.include.files=*.java,*.xml
-# 排除的文件模式
-directory.exclude.files=*.test.java
-# 包含的目录
-directory.include.folders=src/main
-# 排除的目录
-directory.exclude.folders=target,build
-# 允许的文件扩展名
-directory.allowed.extensions=java,xml,properties
-```
 
 使用示例
 
@@ -111,12 +71,17 @@ directory.allowed.extensions=java,xml,properties
 - Markdown生成：将处理后的代码组织成结构化的Markdown文档
 
 ## 常见问题解答
-**如何减少生成文件的大小？**
+### 如何减少生成文件的大小？
+- 启用omit.bean.methods=true  省略getter  setter
+- 设置max.depth限制分析深度
 
-增加max.depth限制分析深度
-设置excluded.packages排除不需要的包
-启用omit.bean.methods=true和simplify.ref.methods=true优化代码
-
+**类分析模式**
+- 启用 keep.only.referenced.methods=true 排除没有引用到的方法。 
+- method.body.max.depth 省略方法体
+  
+**目录模式** 
+- 设置excluded.packages排除不需要的包
+- simplify.methods=true 省略方法体
 
 ## 已知问题
 - 内部类不会参与方法引用分析，也不会省略方法体。
