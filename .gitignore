@@ -10,3 +10,4 @@
 /.idea
 /output.md
 .filebackups
+/dependency-reduced-pom.xml

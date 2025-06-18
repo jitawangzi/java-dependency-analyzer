@@ -325,6 +325,10 @@ public class MethodDependencyAnalyzer {
 			actualDependencies.addAll(referencedClasses);
 		}
 		CompilationUnit cu = CommonUtil.parseCompilationUnit(className);
+		if (cu == null) {
+			log.warn("无法解析类 {} 的编译单元，跳过方法依赖分析", className);
+			return;
+		}
 		cu.findAll(MethodDeclaration.class).forEach(method -> {
 			if (method.getNameAsString().equals(simpleMethodName)) {
 				// 获取这个方法参数、返回值等引用的类

@@ -48,6 +48,9 @@ public class CommonUtil {
 	 * @return 
 	 */
 	public static String getClassName(CompilationUnit cu) {
+		if (cu == null) {
+			throw new IllegalArgumentException("编译单元不能为空");
+		}
 		// 获取主类名（简单名称）
 		String className = cu.getPrimaryTypeName().filter(name -> !name.isEmpty()).orElseGet(() -> {
 			// 查找所有类型声明(类、接口、枚举、注解等)
