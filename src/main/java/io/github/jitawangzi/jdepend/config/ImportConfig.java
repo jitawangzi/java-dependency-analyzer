@@ -8,8 +8,9 @@ import org.aeonbits.owner.ConfigFactory;
 
 /**
  * 导入配置接口，使用Owner框架定义需要保留和跳过的导入包
+ * 优先级：系统属性 > application.properties文件
  */
-@Sources("classpath:application.properties")
+@Sources({"system:properties", "classpath:application.properties"})
 public interface ImportConfig extends Config {
 	// 单例实例，可以直接在应用中使用
 	static ImportConfig INSTANCE = ConfigFactory.create(ImportConfig.class);

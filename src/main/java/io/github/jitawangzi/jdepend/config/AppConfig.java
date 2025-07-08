@@ -9,8 +9,9 @@ import org.aeonbits.owner.ConfigFactory;
 
 /**
  * 配置接口，使用Owner框架定义分析器的各种配置参数
+ * 优先级：系统属性 > application.properties文件
  */
-@Sources("classpath:application.properties")
+@Sources({"system:properties", "classpath:application.properties"})
 public interface AppConfig extends Config {
 	// 单例实例，可以直接在应用中使用
 	static AppConfig INSTANCE = ConfigFactory.create(AppConfig.class);
@@ -20,7 +21,6 @@ public interface AppConfig extends Config {
 	 */
 	@Key("project.root")
 	String getProjectRootPath();
-
 
 	/**
 	 * 获取主类名称
@@ -165,5 +165,5 @@ public interface AppConfig extends Config {
 	@Separator(",")
 	@Key("source.directories")
 	List<String> getSourceDirectories();
-
 }
+
