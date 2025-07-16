@@ -11,7 +11,9 @@ import org.aeonbits.owner.ConfigFactory;
  * 配置接口，使用Owner框架定义分析器的各种配置参数
  * 优先级：系统属性 > application.properties文件
  */
-@Sources({"system:properties", "classpath:application.properties"})
+//@Sources({"system:properties", "classpath:application.properties"})
+//直接运行似乎只能使用 classpath:application.properties
+@Sources({ "classpath:application.properties" })
 public interface AppConfig extends Config {
 	// 单例实例，可以直接在应用中使用
 	static AppConfig INSTANCE = ConfigFactory.create(AppConfig.class);
