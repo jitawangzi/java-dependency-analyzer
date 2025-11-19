@@ -37,7 +37,18 @@ public class JavaParserInit {
 			CombinedTypeSolver typeSolver = new CombinedTypeSolver();
 
 			// 主项目的根路径
-			String projectRootPath = AppConfig.INSTANCE.getProjectRootPath();
+	        String projectRootPath = AppConfig.INSTANCE.getProjectRootPath();
+	        if (projectRootPath == null || projectRootPath.trim().isEmpty()) {
+	            log.warn("project.root 未设置，跳过项目源码和依赖解析（适用于非 Java 目录分析）");
+	            // 只添加基本 solver，不依赖项目根
+	            typeSolver.add(new SimpleXmlTypeSolver());
+	            typeSolver.add(new ReflectionTypeSolver());
+	            // 继续配置 symbolSolver
+	            JavaSymbolSolver symbolSolver = new JavaSymbolSolver(typeSolver);
+	            StaticJavaParser.getParserConfiguration().setSymbolResolver(symbolSolver);
+	            return;  // 提前返回
+	        }
+			
 			File projectRoot = new File(projectRootPath);
 
 			// 获取适用于当前项目的解析器
@@ -72,7 +83,7 @@ public class JavaParserInit {
 			StaticJavaParser.getParserConfiguration().setSymbolResolver(symbolSolver);
 		} catch (Exception e) {
 			log.error("初始化JavaParser失败: ", e);
-			System.exit(1);
+	        throw new RuntimeException("JavaParser 初始化失败", e);  // 改为 throw，避免 System.exit()
 		}
 	}
     public static void main(String[] args) throws Exception {
