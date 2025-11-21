@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.github.jitawangzi.jdepend.config.AppConfig;
+import io.github.jitawangzi.jdepend.config.AppConfigManager;
 import io.github.jitawangzi.jdepend.project.ProjectParser;
 import io.github.jitawangzi.jdepend.project.ProjectParserFactory;
 
@@ -68,11 +68,11 @@ public class FileLocator {
      */
 	private FileLocator() {
         this.javaMatcher = FileSystems.getDefault().getPathMatcher("glob:**.java");
-        this.projectRootPath = Paths.get(AppConfig.INSTANCE.getProjectRootPath());
+        this.projectRootPath = Paths.get(AppConfigManager.get().getProjectRootPath());
         
         // 初始化项目解析器
         try {
-            File projectRoot = new File(AppConfig.INSTANCE.getProjectRootPath());
+            File projectRoot = new File(AppConfigManager.get().getProjectRootPath());
             this.projectParser = ProjectParserFactory.getParser(projectRoot);
             if (this.projectParser == null) {
                 log.warn("Could not determine project type. Falling back to basic file search.");

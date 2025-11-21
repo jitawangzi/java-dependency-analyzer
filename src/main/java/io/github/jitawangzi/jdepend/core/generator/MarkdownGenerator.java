@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import com.github.javaparser.ast.body.MethodDeclaration;
 
 import io.github.jitawangzi.jdepend.config.AppConfig;
+import io.github.jitawangzi.jdepend.config.AppConfigManager;
 import io.github.jitawangzi.jdepend.config.ImportConfig;
 import io.github.jitawangzi.jdepend.core.model.ClassDependency;
 import io.github.jitawangzi.jdepend.core.model.MethodDependency;
@@ -60,11 +61,11 @@ public class MarkdownGenerator {
 		appendCodeContents(sb, classContents);
 
 		// 添加被省略的Bean方法
-		if (AppConfig.INSTANCE.isShowOmittedAccessors() && AppConfig.INSTANCE.isOmitBeanMethods() && !omittedAccessors.isEmpty()) {
+		if (AppConfigManager.get().isShowOmittedAccessors() && AppConfigManager.get().isOmitBeanMethods() && !omittedAccessors.isEmpty()) {
 			appendOmittedAccessors(sb, omittedAccessors);
 		}
 		// 添加被移除的未引用方法
-		if (AppConfig.INSTANCE.isKeepOnlyReferencedMethods() && AppConfig.INSTANCE.isShowRemovedMethods()
+		if (AppConfigManager.get().isKeepOnlyReferencedMethods() && AppConfigManager.get().isShowRemovedMethods()
 				&& !removedUnreferencedMethods.isEmpty()) {
 			appendRemovedUnreferencedMethods(sb, removedUnreferencedMethods);
 		}
@@ -134,7 +135,7 @@ public class MarkdownGenerator {
 	 * @param sb StringBuilder对象
 	 */
 	private void appendGetterAndSetterInfo(StringBuilder sb) {
-		if (AppConfig.INSTANCE.isOmitBeanMethods()) {
+		if (AppConfigManager.get().isOmitBeanMethods()) {
 			sb.append("## Getter and Setter Information\n");
 			sb.append("为减少代码体积，分析器可能忽略了一些标准的java bean getter  setter方法。\n\n");
 		}
@@ -252,7 +253,7 @@ public class MarkdownGenerator {
 		}
 		sb.append("```\n\n");
 
-		sb.append("Full content has been written to output.md\n");
+		sb.append("Full content has been written\n");
 		return sb.toString();
 	}
 

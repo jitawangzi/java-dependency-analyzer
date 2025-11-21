@@ -18,7 +18,7 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSol
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 
-import io.github.jitawangzi.jdepend.config.AppConfig;
+import io.github.jitawangzi.jdepend.config.AppConfigManager;
 import io.github.jitawangzi.jdepend.core.solver.SimpleXmlTypeSolver;
 import io.github.jitawangzi.jdepend.project.ProjectParser;
 import io.github.jitawangzi.jdepend.project.ProjectParserFactory;
@@ -37,7 +37,7 @@ public class JavaParserInit {
 			CombinedTypeSolver typeSolver = new CombinedTypeSolver();
 
 			// 主项目的根路径
-	        String projectRootPath = AppConfig.INSTANCE.getProjectRootPath();
+	        String projectRootPath = AppConfigManager.get().getProjectRootPath();
 	        if (projectRootPath == null || projectRootPath.trim().isEmpty()) {
 	            log.warn("project.root 未设置，跳过项目源码和依赖解析（适用于非 Java 目录分析）");
 	            // 只添加基本 solver，不依赖项目根

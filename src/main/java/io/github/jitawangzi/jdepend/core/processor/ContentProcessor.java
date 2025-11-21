@@ -18,7 +18,7 @@ import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.printer.DefaultPrettyPrinter;
 
-import io.github.jitawangzi.jdepend.config.AppConfig;
+import io.github.jitawangzi.jdepend.config.AppConfigManager;
 import io.github.jitawangzi.jdepend.config.ImportConfig;
 import io.github.jitawangzi.jdepend.config.RuntimeConfig;
 import io.github.jitawangzi.jdepend.util.CommonUtil;
@@ -41,7 +41,7 @@ public class ContentProcessor {
 	 */
 	public ContentProcessor(Set<String> reachableMethods) {
 		this.beanMethodProcessor = new BeanMethodProcessor();
-		this.methodFilter = new MethodFilter(reachableMethods, AppConfig.INSTANCE.getMainClass());
+		this.methodFilter = new MethodFilter(reachableMethods, AppConfigManager.get().getMainClass());
 	}
 
 	 
@@ -64,16 +64,16 @@ public class ContentProcessor {
             
             // 先过滤未被引用的方法 - 这一步必须在处理JavaBean方法之前
 			// 只有在类分析模式下才进行未引用方法过滤，目录模式不过滤，全部保存
-			if (!RuntimeConfig.isDirectoryMode && AppConfig.INSTANCE.isKeepOnlyReferencedMethods()) {
+			if (!RuntimeConfig.isDirectoryMode && AppConfigManager.get().isKeepOnlyReferencedMethods()) {
                 methodFilter.filterUnreferencedMethods(cu, className);
             }
             
             // 然后处理JavaBean方法
-			if (AppConfig.INSTANCE.isOmitBeanMethods()) {
+			if (AppConfigManager.get().isOmitBeanMethods()) {
                 beanMethodProcessor.process(cu, className);
             }
             
-//			boolean isMainClass = className.equals(AppConfig.INSTANCE.getMainClass());
+//			boolean isMainClass = className.equals(AppConfigManager.get().getMainClass());
 			boolean keepMethods = CommonUtil.shouldKeepMethods(className, depth);
             
             if (!keepMethods) {

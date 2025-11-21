@@ -19,7 +19,7 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 
-import io.github.jitawangzi.jdepend.config.AppConfig;
+import io.github.jitawangzi.jdepend.config.AppConfigManager;
 import io.github.jitawangzi.jdepend.core.analyzer.JavaMethodCallAnalyzer.MethodCallInfo;
 import io.github.jitawangzi.jdepend.core.model.MethodReferenceInfo;
 import io.github.jitawangzi.jdepend.util.CommonUtil;
@@ -135,7 +135,7 @@ public class MethodDependencyAnalyzer {
 
 			// 跳过已分析的类、排除的包，以及超出深度限制的类
 			if (analyzedClasses.contains(className) || CommonUtil.isExcludedPackage(className) || !CommonUtil.isProjectClass(className)
-					|| (AppConfig.INSTANCE.getMaxDepth() > 0 && depth > AppConfig.INSTANCE.getMaxDepth())) {
+					|| (AppConfigManager.get().getMaxDepth() > 0 && depth > AppConfigManager.get().getMaxDepth())) {
 				continue;
 			}
 

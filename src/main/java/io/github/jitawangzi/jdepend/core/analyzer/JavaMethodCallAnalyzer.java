@@ -22,7 +22,7 @@ import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
 
-import io.github.jitawangzi.jdepend.config.AppConfig;
+import io.github.jitawangzi.jdepend.config.AppConfigManager;
 import io.github.jitawangzi.jdepend.util.CommonUtil;
 import io.github.jitawangzi.jdepend.util.ParseUtil;
 
@@ -146,7 +146,7 @@ public class JavaMethodCallAnalyzer {
 									+ resolvedMethodName);
 						} catch (Exception e) {
 							log.debug("SymbolSolver解析" + className + "中的方法" + callerMethodName + "调用失败，退化为自定义方式 ");
-							if (AppConfig.INSTANCE.showErrorStacktrace()) {
+							if (AppConfigManager.get().showErrorStacktrace()) {
 								log.error("SymbolSolver解析" + className + "中的方法" + callerMethodName + "调用失败,failCount : "
 										+ failedCount.incrementAndGet(), e);
 							} else {
@@ -172,7 +172,7 @@ public class JavaMethodCallAnalyzer {
 						info.setPackageName(packageName);
 						info.addMethodCall(resolvedClassName, resolvedMethodName);
 					} catch (Exception e) {
-						if (AppConfig.INSTANCE.showErrorStacktrace()) {
+						if (AppConfigManager.get().showErrorStacktrace()) {
 							log.error("解析方法调用失败: " + methodCall, e);
 						} else {
 							log.error("解析方法调用失败: " + methodCall + ",请检查代码是否有错误");

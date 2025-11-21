@@ -14,7 +14,7 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 
-import io.github.jitawangzi.jdepend.config.AppConfig;
+import io.github.jitawangzi.jdepend.config.AppConfigManager;
 import io.github.jitawangzi.jdepend.config.RuntimeConfig;
 
 /**
@@ -51,7 +51,7 @@ public class MethodFilter {
 	 * @param className 类名
 	 */
 	public void filterUnreferencedMethods(CompilationUnit cu, String className) {
-		if (!RuntimeConfig.isDirectoryMode && !AppConfig.INSTANCE.isKeepOnlyReferencedMethods() || className.equals(mainClassName)) {
+		if (!RuntimeConfig.isDirectoryMode && !AppConfigManager.get().isKeepOnlyReferencedMethods() || className.equals(mainClassName)) {
 			// 如果不启用过滤或者是主类，跳过处理
 			return;
 		}

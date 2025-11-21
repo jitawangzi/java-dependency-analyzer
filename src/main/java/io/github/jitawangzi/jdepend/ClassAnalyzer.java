@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import com.github.javaparser.ast.CompilationUnit;
 
 import io.github.jitawangzi.jdepend.config.AppConfig;
+import io.github.jitawangzi.jdepend.config.AppConfigManager;
 import io.github.jitawangzi.jdepend.core.analyzer.DependencyCollector;
 import io.github.jitawangzi.jdepend.core.analyzer.MethodDependencyAnalyzer;
 import io.github.jitawangzi.jdepend.core.generator.MarkdownGenerator;
@@ -42,7 +43,7 @@ public class ClassAnalyzer {
 		long timeMillis = System.currentTimeMillis();
 		JavaParserInit.init();
 		// 加载配置
-		AppConfig config = AppConfig.INSTANCE;
+		AppConfig config = AppConfigManager.get();
 		// 初始化文件定位器
 		FileLocator.getInstance().addSourceDirectories(config.getSourceDirectories());
 

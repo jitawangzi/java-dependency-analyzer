@@ -17,7 +17,7 @@ import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.stmt.Statement;
 
-import io.github.jitawangzi.jdepend.config.AppConfig;
+import io.github.jitawangzi.jdepend.config.AppConfigManager;
 
 /**
  * JavaBean方法处理器，用于识别和处理JavaBean的getter和setter方法
@@ -42,7 +42,7 @@ public class BeanMethodProcessor {
 	 * @param className 类名
 	 */
 	public void process(CompilationUnit cu, String className) {
-		if (!AppConfig.INSTANCE.isOmitBeanMethods()) {
+		if (!AppConfigManager.get().isOmitBeanMethods()) {
 			return;
 		}
 

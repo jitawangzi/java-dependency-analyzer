@@ -22,7 +22,7 @@ import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import com.github.javaparser.resolution.types.ResolvedType;
 
-import io.github.jitawangzi.jdepend.config.AppConfig;
+import io.github.jitawangzi.jdepend.config.AppConfigManager;
 import io.github.jitawangzi.jdepend.config.RuntimeConfig;
 
 public class CommonUtil {
@@ -99,7 +99,7 @@ public class CommonUtil {
 	 * @return 是否是项目内的类
 	 */
 	public static boolean isProjectClass(String className) {
-		Set<String> projectPackagePrefixes = AppConfig.INSTANCE.getProjectPackagePrefixes();
+		Set<String> projectPackagePrefixes = AppConfigManager.get().getProjectPackagePrefixes();
 		boolean ret = false;
 		for (String prefix : projectPackagePrefixes) {
 			if (className.startsWith(prefix)) {
@@ -119,7 +119,7 @@ public class CommonUtil {
 	 * @return 是否被排除
 	 */
 	public static boolean isExcludedPackage(String className) {
-		return AppConfig.INSTANCE.getExcludedPackages().stream().anyMatch(className::startsWith);
+		return AppConfigManager.get().getExcludedPackages().stream().anyMatch(className::startsWith);
 	}
 
 	/**
@@ -131,9 +131,9 @@ public class CommonUtil {
 	 */
 	public static boolean shouldKeepMethods(String className, int depth) {
 		if (RuntimeConfig.isDirectoryMode) {
-			return !AppConfig.INSTANCE.isSimplifyMethods() || AppConfig.INSTANCE.getMethodExceptions().contains(className);
+			return !AppConfigManager.get().isSimplifyMethods() || AppConfigManager.get().getMethodExceptions().contains(className);
 		}
-		return AppConfig.INSTANCE.getMethodBodyMaxDepth() < 0 || depth <= AppConfig.INSTANCE.getMethodBodyMaxDepth();
+		return AppConfigManager.get().getMethodBodyMaxDepth() < 0 || depth <= AppConfigManager.get().getMethodBodyMaxDepth();
 	}
 
 	/**

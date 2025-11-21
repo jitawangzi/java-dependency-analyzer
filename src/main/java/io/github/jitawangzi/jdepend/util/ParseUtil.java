@@ -455,7 +455,7 @@ public class ParseUtil {
 	 */
 	public static String getVarType(CompilationUnit cu, String varName, Node context) {
 
-		// 处理包含点号的变量名，例如 AppConfig.INSTANCE
+		// 处理包含点号的变量名，例如 AppConfigManager.get()
 		if (varName.contains(".")) {
 			String[] parts = varName.split("\\.", 2);
 			String typeName = parts[0];

@@ -9,7 +9,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import io.github.jitawangzi.jdepend.config.AppConfig;
+import io.github.jitawangzi.jdepend.config.AppConfigManager;
 import io.github.jitawangzi.jdepend.core.model.ClassDependency;
 import io.github.jitawangzi.jdepend.util.CommonUtil;
 
@@ -35,7 +35,7 @@ public class DependencyCollector {
 	 * @throws Exception 如果收集过程中发生错误
 	 */
 	public List<ClassDependency> collect() throws Exception {
-		collectDependenciesBFS(AppConfig.INSTANCE.getMainClass(), 0);
+		collectDependenciesBFS(AppConfigManager.get().getMainClass(), 0);
 		return classDepths.entrySet().stream().map(e -> new ClassDependency(e.getKey(), e.getValue())).collect(Collectors.toList());
 	}
 
@@ -86,7 +86,7 @@ public class DependencyCollector {
 	 * @return 是否应该跳过
 	 */
 	private boolean shouldSkip(String className, int currentDepth) {
-		return collected.contains(className) || (AppConfig.INSTANCE.getMaxDepth() > 0 && currentDepth > AppConfig.INSTANCE.getMaxDepth())
+		return collected.contains(className) || (AppConfigManager.get().getMaxDepth() > 0 && currentDepth > AppConfigManager.get().getMaxDepth())
 				|| CommonUtil.isExcludedPackage(className);
 	}
 

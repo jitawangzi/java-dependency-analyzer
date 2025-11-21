@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 
 import io.github.jitawangzi.jdepend.config.AppConfig;
+import io.github.jitawangzi.jdepend.config.AppConfigManager;
 import io.github.jitawangzi.jdepend.config.RuntimeConfig;
 import io.github.jitawangzi.jdepend.core.processor.ContentProcessor;
 import io.github.jitawangzi.jdepend.core.processor.TokenCounter;
@@ -55,7 +56,7 @@ public class DirectoryAnalyzer {
 	 * 处理文件的主要方法
 	 */
 	public static void processFiles(String directoryPath) throws IOException {
-		AppConfig config = AppConfig.INSTANCE;
+		AppConfig config = AppConfigManager.get();
 		// 获取目录路径
 		String dirPath = config.getDirectoryPath();
 
@@ -281,7 +282,7 @@ public class DirectoryAnalyzer {
 	 */
 	private static boolean isFileAllowed(String fileName) {
 		String extension = getFileExtension(fileName);
-		Set<String> allowedFileExtensions = AppConfig.INSTANCE.getAllowedFileExtensions();
+		Set<String> allowedFileExtensions = AppConfigManager.get().getAllowedFileExtensions();
 		return allowedFileExtensions.isEmpty() || allowedFileExtensions.contains(extension.toLowerCase());
 	}
 
@@ -303,7 +304,7 @@ public class DirectoryAnalyzer {
 			JavaParserInit.init();
 			RuntimeConfig.isDirectoryMode = true; // 设置为目录模式
 
-			String directory = AppConfig.INSTANCE.getDirectoryPath();
+			String directory = AppConfigManager.get().getDirectoryPath();
 
 			if (directory == null || directory.isEmpty()) {
 				// 如果没有指定目录，使用当前目录
@@ -314,6 +315,7 @@ public class DirectoryAnalyzer {
 		} catch (Exception e) {
 			System.err.println("Error processing files: " + e.getMessage());
 			e.printStackTrace();
+			throw new RuntimeException(e);
 		}
 	}
 }
